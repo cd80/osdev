@@ -47,14 +47,13 @@
 #define KEY_F12         0x9f
 #define KEY_PAUSE       0xa0
 
+#define KEY_MAXQUEUECOUNT   100
 #pragma pack(push, 1)
 
 struct keymap_entry {
     BYTE normal_code;
     BYTE combined_code;
 };
-
-#pragma pack(pop)
 
 struct keyboard_manager {
     BOOL is_shift;
@@ -66,9 +65,16 @@ struct keyboard_manager {
     int skip_for_pause;
 };
 
+struct keydata {
+    BYTE scan_code;
+    BYTE ascii_code;
+    BYTE flags;
+};
+
+#pragma pack(pop)
+
 void wait_out(void);
 void wait_in(void);
-BOOL wait_ack(void);
 BOOL is_output_buffer_ready(void);
 BOOL is_input_buffer_ready(void);
 BOOL activate_keyboard(void);
@@ -82,6 +88,10 @@ BOOL is_numpad(BYTE scan_code);
 BOOL is_combined(BYTE scan_code);
 void update_keyboard_status(BYTE scan_code);
 BYTE scancode_to_ascii(BYTE scan_code, BYTE *ascii, BOOL *flags);
+BOOL initialize_keyboard(void);
+BOOL convert_scancode_and_put_queue(BYTE scan_code);
+BOOL get_key_from_key_queue(struct keydata *data);
+BOOL wait_ack(void);
 
 static struct keymap_entry key_map_table[KEY_TABLE_MAX] = {
     /* 0x00 */  { KEY_NONE,         KEY_NONE },

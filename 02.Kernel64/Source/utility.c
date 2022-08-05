@@ -1,4 +1,5 @@
 #include "utility.h"
+#include "helper_asm.h"
 
 void progress(int x, int y, const char *string, BOOL success) {
     CHARACTER *screen = (CHARACTER *)0xB8000;
@@ -70,4 +71,18 @@ int memcmp(void *dest, void *src, unsigned int size) {
         }
     }
     return 0;
+}
+
+BOOL set_interrupt_flag(BOOL enable) {
+    QWORD RFLAGS;
+
+    RFLAGS = read_rflags();
+    if (enable == TRUE) {
+        enable_interrupt();
+    }
+    else {
+        disable_interrupt();
+    }
+
+    return !!(RFLAGS & 0x0200);
 }

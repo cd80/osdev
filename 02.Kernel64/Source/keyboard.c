@@ -1,9 +1,12 @@
 #include "types.h"
 #include "helper_asm.h"
 #include "keyboard.h"
+#include "queue.h"
+#include "utility.h"
 
 struct keyboard_manager keyboard = {0, };
-
+static struct generic_queue key_queue;
+static struct keydata key_queue_buf[KEY_MAXQUEUECOUNT];
 
 inline BOOL is_output_buffer_ready(void) {
     if (in1(0x64) & 0x01) {
@@ -22,6 +25,9 @@ inline BOOL is_input_buffer_ready(void) {
 BOOL activate_keyboard(void) {
     // control register: 0x64, keyboard acitvate cmd: 0xae
     // activate keyboard in controller
+    BOOL prev_interrupt;
+    BOOL ack_result;
+    prev_interrupt = set_interrupt_flag(FALSE);
     out1(0x64, 0xae);
 
     wait_in();
@@ -29,8 +35,10 @@ BOOL activate_keyboard(void) {
     // input buffer: 0x60, keyboard activate cmd: 0xf4
     // activate keyboard in keyboard
     out1(0x60, 0xf4);
+    ack_result = wait_ack();
 
-    return wait_ack();
+    set_interrupt_flag(prev_interrupt);
+    return ack_result;
 }
 
 BYTE get_scan_code(void) {
@@ -40,11 +48,17 @@ BYTE get_scan_code(void) {
 }
 
 BOOL change_led(BOOL is_capslock, BOOL is_numlock, BOOL is_scrolllock) {
+    BOOL prev_interrupt;
+    BOOL ack_result;
+
+    prev_interrupt = set_interrupt_flag(FALSE);
+
     wait_in();
     out1(0x60, 0xED);
 
     wait_in();
     if(!wait_ack()) {
+        set_interrupt_flag(prev_interrupt);
         return FALSE;
     }
 
@@ -53,7 +67,10 @@ BOOL change_led(BOOL is_capslock, BOOL is_numlock, BOOL is_scrolllock) {
                (is_scrolllock));
     wait_in();
 
-    return wait_ack();
+    ack_result = wait_ack();
+    
+    set_interrupt_flag(prev_interrupt);
+    return ack_result;
 }
 
 void enable_a20(void) {
@@ -215,11 +232,58 @@ void wait_in(void) {
 }
 
 BOOL wait_ack(void) {
+    BYTE data = 0;
     for(int i = 0; i < 0x100; ++i) {
         wait_out();
-        if(in1(0x60) == 0xfa) {
+        data = in1(0x60);
+        if(data == 0xfa) {
             return TRUE;
+        }
+        else {
+            convert_scancode_and_put_queue(data);
         }
     }
     return FALSE;
+}
+
+BOOL initialize_keyboard(void) {
+    BOOL activate_result = FALSE;
+    initialize_queue(&key_queue, key_queue_buf, KEY_MAXQUEUECOUNT, 
+                    sizeof(struct keydata));
+    activate_result = activate_keyboard();
+    if (activate_result) {
+        change_led(FALSE, FALSE, FALSE);
+    }
+
+    return activate_result;
+}
+
+BOOL convert_scancode_and_put_queue(BYTE scan_code)  {
+    BOOL result = FALSE;
+    BOOL prev_interrupt;
+    struct keydata data;
+
+    data.scan_code = scan_code;
+
+    if(scancode_to_ascii(scan_code, &(data.ascii_code), &data.flags)) {
+        prev_interrupt = set_interrupt_flag(FALSE);
+        result = put_queue(&key_queue, &data);
+        set_interrupt_flag(prev_interrupt);
+    }
+
+    return result;
+}
+BOOL get_key_from_key_queue(struct keydata *data) {
+    BOOL result;
+    BOOL prev_interrupt;
+
+    if(is_queue_empty(&key_queue) == TRUE) {
+        return FALSE;
+    }
+
+    prev_interrupt = set_interrupt_flag(FALSE);
+    result = get_queue(&key_queue, data);
+    set_interrupt_flag(prev_interrupt);
+
+    return result;
 }

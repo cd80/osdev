@@ -1,5 +1,6 @@
 #include "interrupt_handler.h"
 #include "pic.h"
+#include "keyboard.h"
 #include "utility.h"
 
 void common_exception_handler(int vector, QWORD error_code) {
@@ -33,6 +34,7 @@ void common_interrupt_handler(int vector) {
 void keyboard_handler(int vector) {
     char buf[] = "[INT:  , ]";
     static int g_keyboard_interrupt_count = 0;
+    BYTE temp;
 
     buf[5] = '0' + (vector / 10);
     buf[6] = '0' + (vector % 10);
@@ -40,6 +42,11 @@ void keyboard_handler(int vector) {
     buf[8] = '0' + g_keyboard_interrupt_count;
     g_keyboard_interrupt_count = (g_keyboard_interrupt_count + 1) % 10;
     printat(0, 0, buf);
+
+    if(is_output_buffer_ready()) {
+        temp = get_scan_code();
+        convert_scancode_and_put_queue(temp);
+    }
 
     send_eoi_to_pic(vector - PIC_IRQSTARTVECTOR);
 }
