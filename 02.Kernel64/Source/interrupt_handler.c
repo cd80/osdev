@@ -10,8 +10,8 @@ void common_exception_handler(int vector, QWORD error_code) {
     printat(0, 0, "===========================");
     printat(0, 1, "||      Exception!!!     ||");
     printat(0, 2, "||      Vector:          ||");
-    printat(16, 2, buf);
     printat(0, 3, "===========================");
+    printat(16, 2, buf);
 
     while(1) { }
 }
