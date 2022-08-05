@@ -1,0 +1,7 @@
+.vscode/
+01.Kernel32/Temp/
+02.Kernel64/Temp/
+*.bak
+*.dep
+*.bin
+*.img
