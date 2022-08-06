@@ -16,5 +16,6 @@ void main(void) {
     progress(0, 14, "Initialize Keyboard", initialize_keyboard());
 
     start_console_shell();
+    printf("TEST!!!!\n");
 }
 

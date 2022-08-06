@@ -13,7 +13,7 @@ struct shell_command_entry command_table[] = {
 
 void start_console_shell(void) {
     // Main loop of the shell
-    char cmd_buf[CONSOLESHELL_MAXCMDBUFCOUNT];
+    char cmd_buf[CONSOLESHELL_MAXCMDBUFCOUNT] = {0, };
     int cmdbuf_idx = 0;
     BYTE key;
     int x, y;

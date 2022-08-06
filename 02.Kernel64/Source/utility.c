@@ -80,7 +80,7 @@ BOOL set_interrupt_flag(BOOL enable) {
 
 int strlen(const char *buf) {
     int len;
-    for (int len = 0; buf[len] != '\0'; ++len) {}
+    for (len = 0; buf[len] != '\0'; ++len) {}
 
     return len;
 }
@@ -270,11 +270,12 @@ int sprintf(char *buf, const char *fmt, ...) {
 }
 
 int vsprintf(char *buf, const char *fmt, va_list ap) {
-    int buf_idx = 0;
-    int fmt_length, copy_length;
     char *copy_string;
-    QWORD qword_value;
+    int copy_length;
+    int buf_idx = 0;
+    int fmt_length = 0;
     int long_value;
+    QWORD qword_value;
 
     fmt_length = strlen(fmt);
     for (int i = 0; i < fmt_length; ++i) {
