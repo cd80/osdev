@@ -185,13 +185,11 @@ int hex_to_string(QWORD value, char *buf) {
     QWORD idx;
     QWORD cur_value;
 
-    /*
-    if (0 <= value && value <= 9) {
+    if (value == 0) {
         buf[0] ='0' + value;
         buf[1] = '\0';
         return 1;
     }
-    */
 
     for (idx = 0; value > 0; ++idx) {
         cur_value = value % 16;
@@ -214,13 +212,12 @@ int hex_to_string(QWORD value, char *buf) {
 int dec_to_string(long value, char *buf) {
     long idx;
 
-    /*
     if (value == 0) {
         buf[0] = '0';
         buf[1] = '\0';
         return 1;
     }
-    */
+
     if (value < 0 ) {
         idx = 1;
         buf[0] = '-';
