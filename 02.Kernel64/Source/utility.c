@@ -85,8 +85,8 @@ int strlen(const char *buf) {
     return len;
 }
 
-static int total_ram_MB = 0;
-void check_total_ram_size(void) {
+static int total_ram_MB = -1;
+BOOL check_total_ram_size(void) {
     DWORD *cur_addr;
     DWORD prev_value;
 
@@ -103,9 +103,13 @@ void check_total_ram_size(void) {
     }
 
     total_ram_MB = (QWORD)cur_addr / 0x100000;
+    return TRUE;
 }
 
 QWORD get_total_ram_size(void) {
+    if (total_ram_MB == -1) {
+        check_total_ram_size();
+    }
     return total_ram_MB;
 }
 

@@ -11,7 +11,7 @@ unsigned int memcpy(void *dest, void *src, unsigned int size);
 int memcmp(void *dest, void *src, unsigned int size);
 BOOL set_interrupt_flag(BOOL enable_interrupt);
 int strlen(const char *buf);
-void check_total_ram_size(void);
+BOOL check_total_ram_size(void);
 QWORD get_total_ram_size(void);
 void reverse_string(char *buf);
 long atoi(const char *buf, int radix);
