@@ -2,11 +2,12 @@
 #include "console.h"
 #include "keyboard.h"
 #include "helper_asm.h"
+#include "utility.h"
 
 struct console_manager console_manager = {0, };
 
 void initialize_console(int x, int y) {
-    memset(console_manager, 0, sizeof(struct console_manager));
+    memset((void*)&console_manager, 0, sizeof(struct console_manager));
     set_cursor(x, y);
 }
 

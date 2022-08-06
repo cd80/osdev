@@ -80,15 +80,15 @@ BOOL set_interrupt_flag(BOOL enable) {
 
 int strlen(const char *buf) {
     int len;
-    for (int len = 0; buf[len] != '\0'; ++i) {}
+    for (int len = 0; buf[len] != '\0'; ++len) {}
 
     return len;
 }
 
-static total_ram_MB = 0;
+static int total_ram_MB = 0;
 void check_total_ram_size(void) {
     DWORD *cur_addr;
-    DWORD *prev_value;
+    DWORD prev_value;
 
     cur_addr = (DWORD *)0x4000000;
 
@@ -150,8 +150,8 @@ long dec_string_to_long(const char *buf) {
 
     for (; buf[idx] != '\0'; ++idx) {
         value *= 10;
-        if (('0' <= buf[i]) && (buf[i] <= '9')) {
-            value += buf[i] - '0';
+        if (('0' <= buf[idx]) && (buf[idx] <= '9')) {
+            value += buf[idx] - '0';
         }
         else {
             break;
@@ -230,12 +230,12 @@ int dec_to_string(long value, char *buf) {
         idx = 0;
     }
 
-    for (; value > 0; ++i) {
-        buf[i] = '0' + (value % 10);
+    for (; value > 0; ++idx) {
+        buf[idx] = '0' + (value % 10);
         value = value / 10;
     }
 
-    buf[i] = '\0';
+    buf[idx] = '\0';
     
     if (buf[0] == '-') {
         reverse_string(&(buf[1]));
@@ -273,8 +273,8 @@ int vsprintf(char *buf, const char *fmt, va_list ap) {
     int buf_idx = 0;
     int fmt_length, copy_length;
     char *copy_string;
-    QWORD value;
-    int value;
+    QWORD qword_value;
+    int long_value;
 
     fmt_length = strlen(fmt);
     for (int i = 0; i < fmt_length; ++i) {
@@ -295,21 +295,21 @@ int vsprintf(char *buf, const char *fmt, va_list ap) {
                 
                 case 'd':
                 case 'i':
-                    value = (int)(va_arg(ap, int));
-                    buf_idx += itoa(value, buf + buf_idx, 10);
+                    long_value = (int)(va_arg(ap, int));
+                    buf_idx += itoa(long_value, buf + buf_idx, 10);
                     break;
                 
                 case 'x':
                 case 'X':
-                    value = (DWORD)(va_arg(ap, DWORD)) & 0xFFFFFFFF;
-                    buf_idx += itoa(value, buf + buf_idx, 16);
+                    qword_value = (DWORD)(va_arg(ap, DWORD)) & 0xFFFFFFFF;
+                    buf_idx += itoa(qword_value, buf + buf_idx, 16);
                     break;
                 
                 case 'q':
                 case 'Q':
                 case 'p':
-                    value = (QWORD)(va_arg(ap, QWORD));
-                    buf_idx += itoa(value, buf + buf_idx, 16);
+                    qword_value = (QWORD)(va_arg(ap, QWORD));
+                    buf_idx += itoa(qword_value, buf + buf_idx, 16);
                     break;
                 
                 default:

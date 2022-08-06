@@ -15,6 +15,6 @@ void main(void) {
     progress(0, 13, "Initialize PIC & Interrupt", initialize_pic_and_interrupt());
     progress(0, 14, "Initialize Keyboard", initialize_keyboard());
 
-
+    start_console_shell();
 }
 

@@ -80,7 +80,7 @@ void execute_command(const char *cmd_buf) {
     for (int i = 0; i < count; ++i){
         cmd_len = strlen(command_table[i].cmd);
         if ((cmd_len == space_idx) &&
-            (memcmp(command_table[i].cmd, cmd_buf, space_idx) == 0)) {
+            (memcmp(command_table[i].cmd, (void *)cmd_buf, space_idx) == 0)) {
             command_table[i].handler(cmd_buf + space_idx + 1);
             return;
         }
@@ -107,7 +107,7 @@ int get_next_param(struct parameter_list *list, char *param) {
         }
     }
 
-    memcpy(param, list->buf + list->cur_pos, i);
+    memcpy(param, (void *)(list->buf + list->cur_pos), i);
     length = i - list->cur_pos;
     param[length] = '\0';
 
@@ -142,7 +142,7 @@ void cmd_help(const char *param) {
 
 void cmd_cls(const char *param) {
     clear_screen();
-    set_curosr(0, 1);
+    set_cursor(0, 1);
 }
 
 void cmd_totalram(const char *param) {

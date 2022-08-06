@@ -1,6 +1,8 @@
 #ifndef __console_h__
 #define __console_h__
 
+#include "types.h"
+
 #define CONSOLE_BACKGROUND_BLACK            0x00
 #define CONSOLE_BACKGROUND_BLUE             0x10
 #define CONSOLE_BACKGROUND_GREEN            0x20
@@ -32,7 +34,7 @@
 
 #define CONSOLE_WIDTH       80
 #define CONSOLE_HEIGHT      25
-#define CONSOLE_VIDEOMEM    0xB8000
+#define CONSOLE_VIDEOMEM    ((void *)0xB8000)
 
 #define VGA_PORT_INDEX          0x3D4
 #define VGA_PORT_DATA           0x3D5
