@@ -2,6 +2,7 @@
 #include "pic.h"
 #include "keyboard.h"
 #include "utility.h"
+#include "console.h"
 
 void common_exception_handler(int vector, QWORD error_code) {
     char buf[3] = {0, };
