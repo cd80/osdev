@@ -2,6 +2,9 @@
 #include "console.h"
 #include "keyboard.h"
 #include "utility.h"
+#include "pit.h"
+#include "rtc.h"
+#include "helper_asm.h"
 
 struct shell_command_entry command_table[] = {
     { "help", "Show help", cmd_help },
@@ -9,6 +12,11 @@ struct shell_command_entry command_table[] = {
     { "totalram", "Show total RAM size", cmd_totalram },
     { "strtod", "Convert string to decimal/hex", cmd_strtod },
     { "reboot", "Reboot OS", cmd_reboot },
+    { "settimer", "Set PIT controller counter0\n\t\t\t\tex) settimer 10(ms) 1(periodic)", cmd_settimer },
+    { "wait", "Wait ms using PIT\n\t\t\t\tex)wait 100(ms)", cmd_wait },
+    { "rdtsc", "Read TSC(Time Stamp Counter)", cmd_rdtsc },
+    { "cpuspeed", "Measure processor speed", cmd_cpuspeed },
+    { "date", "Show date and time", cmd_date },
 };
 
 void start_console_shell(void) {
@@ -149,29 +157,29 @@ void cmd_totalram(const char *param) {
     printf("Total RAM size = %d MB\n", get_total_ram_size());
 }
 
-void cmd_strtod(const char *param_buf) {
-    char param[100];
+void cmd_strtod(const char *param) {
+    char cur_param[100];
     int length;
     struct parameter_list param_list;
     int count = 0;
     long value;
 
-    initialize_parameter(&param_list, param_buf);
+    initialize_parameter(&param_list, param);
 
     while (1) {
-        length = get_next_param(&param_list, param);
+        length = get_next_param(&param_list, cur_param);
         if (length == 0) {
             break;
         }
 
-        printf("param %d = '%s', length = %d, ", count + 1, param, length);
+        printf("param %d = '%s', length = %d, ", count + 1, cur_param, length);
 
         if (memcmp(param, "0x", 2) == 0) {
-            value = atoi(param + 2, 16);
+            value = atoi(cur_param + 2, 16);
             printf("HEX Value = %q\n", value);
         }
         else {
-            value = atoi(param, 10);
+            value = atoi(cur_param, 10);
             printf("Decimal Value = %d\n", value);
         }
 
@@ -184,4 +192,99 @@ void cmd_reboot(const char *param) {
     printf("press any key to restart...");
     getch();
     reboot();
+}
+
+void cmd_settimer(const char *param) {
+    char cur_param[100];
+    struct parameter_list param_list;
+    long value;
+    BOOL is_periodic;
+
+    initialize_parameter(&param_list, param);
+
+    if (get_next_param(&param_list, cur_param) == 0) {
+        printf("ex) settimer 10(ms) 1(periodic)\n");
+        return;
+    }
+    value = atoi(cur_param, 10);
+
+    if (get_next_param(&param_list, cur_param) == 0) {
+        printf("ex) settimer 10(ms) 1(periodic\n");
+        return;
+    }
+
+    is_periodic = atoi(cur_param, 10);
+
+    initialize_pit(MSTOCOUNT(value), is_periodic);
+    printf("Time = %dms, Periodic = %d Change Complete\n", value, is_periodic);
+}
+
+void cmd_wait(const char *param) {
+    char cur_param[100];
+    int length;
+    struct parameter_list param_list;
+    long millisecond;
+    
+    initialize_parameter(&param_list, param);
+
+    if (get_next_param(&param_list, cur_param) == 0) {
+        printf("ex) wait 100(ms)\n");
+        return;
+    }
+
+    millisecond = atoi(cur_param, 10);
+    printf("Starting %dms sleep\n", millisecond);
+
+    disable_interrupt();
+    for (int i = 0; i < millisecond / 30; ++i) {
+        wait_using_direct_pit(MSTOCOUNT(30));
+    }
+    wait_using_direct_pit(MSTOCOUNT(millisecond % 30));
+    enable_interrupt();
+
+    printf("Finished %dms sleep\n", millisecond);
+
+    initialize_pit(MSTOCOUNT(1), TRUE);
+}
+
+void cmd_rdtsc(const char *param) {
+    QWORD tsc;
+    tsc = read_tsc();
+    printf("Timestamp counter = %q\n", tsc);
+}
+
+void cmd_cpuspeed(const char *param) {
+    QWORD last_tsc, total_tsc = 0;
+
+    printf("Start measuing for 10 seconds");
+    
+    disable_interrupt();
+    for (int i = 0; i < 200; ++i) {
+        last_tsc = read_tsc();
+        wait_using_direct_pit(MSTOCOUNT(50));
+        total_tsc += read_tsc() - last_tsc;
+
+        if(i % 20 == 0) {
+            printf(".");
+        }
+    }
+
+    initialize_pit(MSTOCOUNT(1), TRUE);
+    enable_interrupt();
+
+    printf("\n\n");
+    printf("CPU speed = %dMHz\n", total_tsc / 10 / 1000 / 1000);
+}
+
+void cmd_date(const char *param) {
+    BYTE second, minute, hour;
+    BYTE day_of_week, day_of_month, month;
+    WORD year;
+
+    read_rtc_time(&hour, &minute, &second);
+    read_rtc_date(&year, &month, &day_of_month, &day_of_week);
+
+    printf("Date: %d/%d/%d %s, ", year, month, day_of_month,
+                                convert_day_to_string(day_of_week));
+    printf("Time: %d:%d:%d\n", hour, minute, second);
 }

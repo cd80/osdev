@@ -10,5 +10,6 @@ void load_idtr(QWORD idtr_address);
 void enable_interrupt(void);
 void disable_interrupt(void);
 QWORD read_rflags(void);
+QWORD read_tsc(void);
 
 #endif

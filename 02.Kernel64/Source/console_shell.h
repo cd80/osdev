@@ -34,5 +34,10 @@ void cmd_cls(const char *param);
 void cmd_totalram(const char *param);
 void cmd_strtod(const char *param);
 void cmd_reboot(const char *param);
+void cmd_settimer(const char *param);
+void cmd_wait(const char *param);
+void cmd_rdtsc(const char *param);
+void cmd_cpuspeed(const char *param);
+void cmd_date(const char *param);
 
 #endif

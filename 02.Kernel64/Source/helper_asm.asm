@@ -3,7 +3,7 @@
 SECTION .text
 
 global in1, out1, load_gdtr, load_tr, load_idtr
-global enable_interrupt, disable_interrupt, read_rflags
+global enable_interrupt, disable_interrupt, read_rflags, read_tsc
 
 in1:
     push rdx
@@ -50,4 +50,12 @@ disable_interrupt:
 read_rflags:
     pushfq
     pop rax
+    ret
+
+read_tsc:
+    push rdx
+    rdtsc
+    shl rdx, 32
+    or rax, rdx
+    pop rdx
     ret
