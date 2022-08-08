@@ -17,4 +17,5 @@ https://digital.kyobobook.co.kr/digital/ebook/ebookDetail.ink?selectedLargeCateg
 2022.8.3 Chapter #12 Done!  
 2022.8.5 Chapter #13, #14 Done!  
 2022.8.6 Chapter #15 Done!
-2022.8.7 Chapter #16 Done!
+2022.8.7 Chapter #16 Done!  
+2022.8.8 Chapter #17 Done!  

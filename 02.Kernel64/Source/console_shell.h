@@ -39,5 +39,6 @@ void cmd_wait(const char *param);
 void cmd_rdtsc(const char *param);
 void cmd_cpuspeed(const char *param);
 void cmd_date(const char *param);
+void cmd_createtask(const char *param);
 
 #endif

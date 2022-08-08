@@ -5,6 +5,7 @@
 #include "pit.h"
 #include "rtc.h"
 #include "helper_asm.h"
+#include "task.h"
 
 struct shell_command_entry command_table[] = {
     { "help", "Show help", cmd_help },
@@ -17,6 +18,7 @@ struct shell_command_entry command_table[] = {
     { "rdtsc", "Read TSC(Time Stamp Counter)", cmd_rdtsc },
     { "cpuspeed", "Measure processor speed", cmd_cpuspeed },
     { "date", "Show date and time", cmd_date },
+    { "createtask", "Create Task", cmd_createtask },
 };
 
 void start_console_shell(void) {
@@ -174,7 +176,7 @@ void cmd_strtod(const char *param) {
 
         printf("param %d = '%s', length = %d, ", count + 1, cur_param, length);
 
-        if (memcmp(param, "0x", 2) == 0) {
+        if (memcmp((void *)param, "0x", 2) == 0) {
             value = atoi(cur_param + 2, 16);
             printf("HEX Value = %q\n", value);
         }
@@ -287,4 +289,31 @@ void cmd_date(const char *param) {
     printf("Date: %d/%d/%d %s, ", year, month, day_of_month,
                                 convert_day_to_string(day_of_week));
     printf("Time: %d:%d:%d\n", hour, minute, second);
+}
+
+static TCB tasks[2] = {0, };
+static QWORD stack[1024] = {0, };
+
+void test_task(void) {
+    int i = 0;
+    while (1) {
+        printf("[%d] This message is from test_task. Press any key to switch to console_shell\n", i++);
+        getch();
+        switch_context(&(tasks[1].ctx), &(tasks[0].ctx));
+    }
+}
+
+void cmd_createtask(const char *param) {
+    struct keydata *data;
+    int i = 0;
+
+    setup_task(&(tasks[1]), 1, 0, (QWORD)test_task, &(stack), sizeof(stack));
+
+    while(1) {
+        printf("[%d] This message is from console_shell. Press any key to switch to test_task\n", i++);
+        if(getch() == 'q') { 
+            break;
+        }
+        switch_context(&(tasks[0].ctx), &(tasks[1].ctx));
+    }
 }
