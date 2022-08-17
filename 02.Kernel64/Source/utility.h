@@ -22,5 +22,8 @@ int hex_to_string(QWORD value, char *buf);
 int dec_to_string(long value, char *buf);
 int sprintf(char *buf, const char *fmt, ...);
 int vsprintf(char *buf, const char *fmt, va_list ap);
+QWORD get_tick_count(void);
+
+extern volatile QWORD g_tick_count;
 
 #endif

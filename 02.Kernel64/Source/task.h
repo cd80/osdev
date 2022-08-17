@@ -2,6 +2,7 @@
 #define __task_h__
 
 #include "types.h"
+#include "list.h"
 
 #define TASK_REGISTERCOUNT  (5 + 19)
 #define TASK_REGISTERSIZE   8
@@ -31,6 +32,15 @@
 #define TASK_RSPOFFSET  22
 #define TASK_SSOFFSET   23
 
+#define TASK_TCBPOOLADDRESS ((void *)(0x800000))
+#define TASK_MAXCOUNT       1024
+
+#define TASK_STACKPOOLADDRESS   (TASK_TCBPOOLADDRESS + sizeof(TCB) * TASK_MAXCOUNT)
+#define TASK_STACKSIZE      8192
+#define TASK_INVALIDID      0xFFFFFFFFFFFFFFFF
+
+#define TASK_PROCESSORTIME  5
+
 #pragma pack(push, 1)
 
 typedef struct _CONTEXT {
@@ -38,6 +48,8 @@ typedef struct _CONTEXT {
 } CONTEXT;
 
 typedef struct _TCB {
+    LISTLINK link;
+
     CONTEXT ctx;
 
     QWORD id;
@@ -47,9 +59,37 @@ typedef struct _TCB {
     QWORD stack_size;
 } TCB;
 
+typedef struct _TCBPOOLMANAGER {
+    TCB *start_address;
+    int max_count;
+    int use_count;
+
+    int allocated_count;
+} TCBPOOLMANAGER;
+
+typedef struct _SCHEDULER {
+    TCB *running_task;
+    int processor_time;
+    LIST ready_list;
+} SCHEDULER;
+
 #pragma pack(pop)
 
-void setup_task(TCB *tcb, QWORD id, QWORD flags, QWORD entry_point,
+void initialize_tcb_pool(void);
+TCB *allocate_tcb(void);
+void free_tcb(QWORD id);
+TCB *create_task(QWORD flags, QWORD entry_point);
+void setup_task(TCB *tcb, QWORD flags, QWORD entry_point,
                 void *stack_address, QWORD stack_size);
+
+BOOL initialize_scheduler(void);
+void set_running_task(TCB *task);
+TCB *get_running_task(void);
+TCB *get_next_task_to_run(void);
+void add_task_to_ready_list(TCB *task);
+void schedule(void);
+BOOL schedule_in_interrupt(void);
+void decrease_processor_time(void);
+BOOL is_processor_time_expired(void);
 
 #endif

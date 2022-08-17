@@ -3,6 +3,8 @@
 #include "helper_asm.h"
 #include "console.h"
 
+volatile QWORD g_tick_count = 0;
+
 void progress(int x, int y, const char *string, BOOL success) {
     CHARACTER *screen = (CHARACTER *)0xB8000;
     char *msg_success = success ? "PASS" : "FAIL";
@@ -328,4 +330,8 @@ int vsprintf(char *buf, const char *fmt, va_list ap) {
 
     buf[buf_idx] = '\0';
     return buf_idx;
+}
+
+QWORD get_tick_count(void) {
+    return g_tick_count;
 }

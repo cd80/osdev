@@ -3,6 +3,7 @@
 SECTION .text
 
 extern common_exception_handler, common_interrupt_handler, keyboard_handler
+extern timer_handler
 
 ; ISR for Exception
 global isr_divide_error, isr_debug, isr_nmi, isr_breakpoint, isr_overflow
@@ -371,7 +372,7 @@ isr_timer:
     SAVE_CONTEXT
 
     mov rdi, 32
-    call common_interrupt_handler
+    call timer_handler
 
     LOAD_CONTEXT
     iretq

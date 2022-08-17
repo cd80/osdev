@@ -6,5 +6,6 @@
 void common_exception_handler(int vector, QWORD error_code);
 void common_interrupt_handler(int vector);
 void keyboard_handler(int vector);
+void timer_handler(int vector);
 
 #endif

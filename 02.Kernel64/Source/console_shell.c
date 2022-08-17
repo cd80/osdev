@@ -18,7 +18,7 @@ struct shell_command_entry command_table[] = {
     { "rdtsc", "Read TSC(Time Stamp Counter)", cmd_rdtsc },
     { "cpuspeed", "Measure processor speed", cmd_cpuspeed },
     { "date", "Show date and time", cmd_date },
-    { "createtask", "Create Task", cmd_createtask },
+    { "createtask", "Create Task, ex)createtask 1(type) 10(count)", cmd_createtask },
 };
 
 void start_console_shell(void) {
@@ -291,29 +291,96 @@ void cmd_date(const char *param) {
     printf("Time: %d:%d:%d\n", hour, minute, second);
 }
 
-static TCB tasks[2] = {0, };
-static QWORD stack[1024] = {0, };
+void test_task1(void) {
+    BYTE data;
+    int i=0, x=0, y=0, margin;
+    CHARACTER *screen = (CHARACTER *)CONSOLE_VIDEOMEM;
+    TCB *running_task;
 
-void test_task(void) {
-    int i = 0;
+    running_task = get_running_task();
+    margin = (running_task->link.id & 0xFFFFFFFF) % 10;
+
+    while(1) {
+        switch(i) {
+            case 0:
+                x++;
+                if (x >= (CONSOLE_WIDTH - margin)) {
+                    i = 1;
+                }
+                break;
+            case 1:
+                y++;
+                if (y >= (CONSOLE_HEIGHT - margin)) {
+                    i = 2;
+                }
+                break;
+            case 2:
+                x--;
+                if (x < margin) {
+                    i = 3;
+                }
+                break;
+            case 3:
+                y--;
+                if (y < margin) {
+                    i = 0;
+                }
+                break;
+        }
+        screen[x + y * CONSOLE_WIDTH].character = data;
+        screen[x + y * CONSOLE_WIDTH].attr = data & 0x0F;
+        data++;
+
+        schedule();
+    }
+}
+
+void test_task2(void) {
+    int i = 0, offset;
+    CHARACTER *screen = (CHARACTER *)CONSOLE_VIDEOMEM;
+    TCB *running_task;
+    char data[4] = {'-', '\\', '|', '/'};
+
+    running_task = get_running_task();
+    offset = (running_task->link.id & 0xFFFFFFFF) * 2;
+    offset = CONSOLE_WIDTH * CONSOLE_HEIGHT - (offset % (CONSOLE_WIDTH * CONSOLE_HEIGHT));
+
     while (1) {
-        printf("[%d] This message is from test_task. Press any key to switch to console_shell\n", i++);
-        getch();
-        switch_context(&(tasks[1].ctx), &(tasks[0].ctx));
+        screen[offset].character = data[i % 4];
+        screen[offset].attr = (offset % 15) + 1;
+        i++;
+
+        schedule();
     }
 }
 
 void cmd_createtask(const char *param) {
-    struct keydata *data;
-    int i = 0;
+    struct parameter_list param_list;
+    char type[30];
+    char count[30];
+    int i;
 
-    setup_task(&(tasks[1]), 1, 0, (QWORD)test_task, &(stack), sizeof(stack));
+    initialize_parameter(&param_list, param);
+    get_next_param(&param_list, type);
+    get_next_param(&param_list, count);
 
-    while(1) {
-        printf("[%d] This message is from console_shell. Press any key to switch to test_task\n", i++);
-        if(getch() == 'q') { 
+    switch(atoi(type, 10)) {
+        case 1:
+            for (i = 0; i < atoi(count, 10); ++i) {
+                if (create_task(0, (QWORD)test_task1) == NULL) {
+                    break;
+                }
+            }
+            printf("Task1 %d Created\n", i);
             break;
-        }
-        switch_context(&(tasks[0].ctx), &(tasks[1].ctx));
+        case 2:
+        default:
+            for (i = 0; i < atoi(count, 10); ++i) {
+                if (create_task(0, (QWORD)test_task2) == NULL) {
+                    break;
+                }
+            }
+            printf("Task2 %d Created\n", i);
+            break;
     }
 }

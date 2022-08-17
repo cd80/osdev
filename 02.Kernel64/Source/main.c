@@ -5,6 +5,8 @@
 #include "utility.h"
 #include "console.h"
 #include "console_shell.h"
+#include "task.h"
+#include "pit.h"
 
 void main(void) {
     progress(0, 10, "Switched to 64bit", TRUE);
@@ -12,7 +14,9 @@ void main(void) {
     progress(0, 12, "Initialize IDT", initialize_idt());
     progress(0, 13, "Initialize PIC & Interrupt", initialize_pic_and_interrupt());
     progress(0, 14, "Initialize Keyboard", initialize_keyboard());
+    progress(0, 15, "Initialize TCB Pool & Scheduler", initialize_scheduler());
 
+    initialize_pit(MSTOCOUNT(1), 1);
 
     initialize_console(0, 16);
     start_console_shell();

@@ -3,6 +3,8 @@
 #include "keyboard.h"
 #include "utility.h"
 #include "console.h"
+#include "task.h"
+#include "descriptor.h"
 
 void common_exception_handler(int vector, QWORD error_code) {
     char buf[3] = {0, };
@@ -50,4 +52,25 @@ void keyboard_handler(int vector) {
     }
 
     send_eoi_to_pic(vector - PIC_IRQSTARTVECTOR);
+}
+
+void timer_handler(int vector) {
+    char buf[] = "[INT:  , ]";
+    static int g_timer_interrupt_count = 0;
+
+    buf[5] = '0' + (vector / 10);
+    buf[6] = '0' + (vector % 10);
+    
+    buf[8] = g_timer_interrupt_count;
+    g_timer_interrupt_count = '0' + (g_timer_interrupt_count + 1) % 10;
+    printat(70, 0, buf);
+
+    send_eoi_to_pic(vector - PIC_IRQSTARTVECTOR);
+
+    g_tick_count++;
+
+    decrease_processor_time();
+    if (is_processor_time_expired() == TRUE) {
+        schedule_in_interrupt();
+    }
 }
