@@ -19,6 +19,8 @@ void main(void) {
     initialize_pit(MSTOCOUNT(1), 1);
 
     initialize_console(0, 16);
+
+    create_task(TASK_FLAGS_LOWEST | TASK_FLAGS_IDLE, (QWORD)idle_task);
     start_console_shell();
     printf("TEST!!!!\n");
 }

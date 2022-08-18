@@ -90,7 +90,9 @@ void clear_screen(void) {
 BYTE getch(void) {
     struct keydata data;
     while(1) {
-        while(get_key_from_key_queue(&data) == FALSE) { }
+        while(get_key_from_key_queue(&data) == FALSE) {
+            schedule();
+        }
 
         if(data.flags & KEY_FLAGS_DOWN) {
             return data.ascii_code;

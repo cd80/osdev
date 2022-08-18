@@ -4,7 +4,7 @@ SECTION .text
 
 global in1, out1, load_gdtr, load_tr, load_idtr
 global enable_interrupt, disable_interrupt, read_rflags, read_tsc
-global switch_context
+global switch_context, halt
 
 in1:
     push rdx
@@ -152,3 +152,9 @@ switch_context:
         LOAD_CONTEXT
     
     iretq
+
+halt:
+    hlt
+    hlt
+    ret
+    

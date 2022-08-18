@@ -29,16 +29,19 @@ void execute_command(const char *cmd_buf);
 void initialize_parameter(struct parameter_list *list, const char *param);
 int get_next_param(struct parameter_list *list, char *param);
 
-void cmd_help(const char *param);
-void cmd_cls(const char *param);
-void cmd_totalram(const char *param);
-void cmd_strtod(const char *param);
-void cmd_reboot(const char *param);
-void cmd_settimer(const char *param);
-void cmd_wait(const char *param);
-void cmd_rdtsc(const char *param);
-void cmd_cpuspeed(const char *param);
-void cmd_date(const char *param);
-void cmd_createtask(const char *param);
-
+static void cmd_help(const char *param);
+static void cmd_cls(const char *param);
+static void cmd_totalram(const char *param);
+static void cmd_strtod(const char *param);
+static void cmd_reboot(const char *param);
+static void cmd_settimer(const char *param);
+static void cmd_wait(const char *param);
+static void cmd_rdtsc(const char *param);
+static void cmd_cpuspeed(const char *param);
+static void cmd_date(const char *param);
+static void cmd_createtask(const char *param);
+static void cmd_changepriority(const char *param);
+static void cmd_tasklist(const char *param);
+static void cmd_killtask(const char *param);
+static void cmd_cpuload(const char *param);
 #endif

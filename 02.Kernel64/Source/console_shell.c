@@ -19,6 +19,10 @@ struct shell_command_entry command_table[] = {
     { "cpuspeed", "Measure processor speed", cmd_cpuspeed },
     { "date", "Show date and time", cmd_date },
     { "createtask", "Create Task, ex)createtask 1(type) 10(count)", cmd_createtask },
+    { "changepriority", "Change task priority, ex) changepriority 1(ID) 2(Priority)", cmd_changepriority },
+    { "tasklist", "Show task list", cmd_tasklist },
+    { "killtask", "End Task, ex) killtask 1(ID)", cmd_killtask },
+    { "cpuload", "Show processor load", cmd_cpuload },
 };
 
 void start_console_shell(void) {
@@ -125,7 +129,7 @@ int get_next_param(struct parameter_list *list, char *param) {
     return length;
 }
 
-void cmd_help(const char *param) {
+static void cmd_help(const char *param) {
     int count;
     int x, y;
     int length, max_cmd_length = 0;
@@ -150,16 +154,16 @@ void cmd_help(const char *param) {
     }
 }
 
-void cmd_cls(const char *param) {
+static void cmd_cls(const char *param) {
     clear_screen();
     set_cursor(0, 1);
 }
 
-void cmd_totalram(const char *param) {
+static void cmd_totalram(const char *param) {
     printf("Total RAM size = %d MB\n", get_total_ram_size());
 }
 
-void cmd_strtod(const char *param) {
+static void cmd_strtod(const char *param) {
     char cur_param[100];
     int length;
     struct parameter_list param_list;
@@ -189,14 +193,14 @@ void cmd_strtod(const char *param) {
     }
 }
 
-void cmd_reboot(const char *param) {
+static void cmd_reboot(const char *param) {
     printf("[*] System reboot\n");
     printf("press any key to restart...");
     getch();
     reboot();
 }
 
-void cmd_settimer(const char *param) {
+static void cmd_settimer(const char *param) {
     char cur_param[100];
     struct parameter_list param_list;
     long value;
@@ -221,7 +225,7 @@ void cmd_settimer(const char *param) {
     printf("Time = %dms, Periodic = %d Change Complete\n", value, is_periodic);
 }
 
-void cmd_wait(const char *param) {
+static void cmd_wait(const char *param) {
     char cur_param[100];
     int length;
     struct parameter_list param_list;
@@ -249,13 +253,13 @@ void cmd_wait(const char *param) {
     initialize_pit(MSTOCOUNT(1), TRUE);
 }
 
-void cmd_rdtsc(const char *param) {
+static void cmd_rdtsc(const char *param) {
     QWORD tsc;
     tsc = read_tsc();
     printf("Timestamp counter = %q\n", tsc);
 }
 
-void cmd_cpuspeed(const char *param) {
+static void cmd_cpuspeed(const char *param) {
     QWORD last_tsc, total_tsc = 0;
 
     printf("Start measuing for 10 seconds");
@@ -278,7 +282,7 @@ void cmd_cpuspeed(const char *param) {
     printf("CPU speed = %dMHz\n", total_tsc / 10 / 1000 / 1000);
 }
 
-void cmd_date(const char *param) {
+static void cmd_date(const char *param) {
     BYTE second, minute, hour;
     BYTE day_of_week, day_of_month, month;
     WORD year;
@@ -291,7 +295,7 @@ void cmd_date(const char *param) {
     printf("Time: %d:%d:%d\n", hour, minute, second);
 }
 
-void test_task1(void) {
+static void test_task1(void) {
     BYTE data;
     int i=0, x=0, y=0, margin;
     CHARACTER *screen = (CHARACTER *)CONSOLE_VIDEOMEM;
@@ -300,7 +304,7 @@ void test_task1(void) {
     running_task = get_running_task();
     margin = (running_task->link.id & 0xFFFFFFFF) % 10;
 
-    while(1) {
+    for (int j = 0; j < 20000; ++j) {
         switch(i) {
             case 0:
                 x++;
@@ -330,12 +334,12 @@ void test_task1(void) {
         screen[x + y * CONSOLE_WIDTH].character = data;
         screen[x + y * CONSOLE_WIDTH].attr = data & 0x0F;
         data++;
-
-        schedule();
     }
+
+    exit_task();
 }
 
-void test_task2(void) {
+static void test_task2(void) {
     int i = 0, offset;
     CHARACTER *screen = (CHARACTER *)CONSOLE_VIDEOMEM;
     TCB *running_task;
@@ -350,11 +354,10 @@ void test_task2(void) {
         screen[offset].attr = (offset % 15) + 1;
         i++;
 
-        schedule();
     }
 }
 
-void cmd_createtask(const char *param) {
+static void cmd_createtask(const char *param) {
     struct parameter_list param_list;
     char type[30];
     char count[30];
@@ -367,7 +370,7 @@ void cmd_createtask(const char *param) {
     switch(atoi(type, 10)) {
         case 1:
             for (i = 0; i < atoi(count, 10); ++i) {
-                if (create_task(0, (QWORD)test_task1) == NULL) {
+                if (create_task(TASK_FLAGS_LOW, (QWORD)test_task1) == NULL) {
                     break;
                 }
             }
@@ -376,11 +379,92 @@ void cmd_createtask(const char *param) {
         case 2:
         default:
             for (i = 0; i < atoi(count, 10); ++i) {
-                if (create_task(0, (QWORD)test_task2) == NULL) {
+                if (create_task(TASK_FLAGS_LOW, (QWORD)test_task2) == NULL) {
                     break;
                 }
             }
             printf("Task2 %d Created\n", i);
             break;
     }
+}
+
+static void cmd_changepriority(const char *param) {
+    struct parameter_list param_list;
+    char param_id[30];
+    char param_priority[30];
+    QWORD id;
+    BYTE priority;
+
+    initialize_parameter(&param_list, param);
+    get_next_param(&param_list, param_id);
+    get_next_param(&param_list, param_priority);
+
+    if (memcmp(param_id, "0x", 2) == 0) {
+        id = atoi(param_id + 2, 16);
+    }
+    else {
+        id = atoi(param_id, 10);
+    }
+
+    priority = atoi(param_priority, 10);
+
+    printf("Change task priority ID [0x%q] Priority[%d] ", id, priority);
+    if (change_priority(id, priority) == TRUE) {
+        printf("Success\n");
+    }
+    else {
+        printf("Fail\n");
+    }
+}
+
+static void cmd_tasklist(const char *param) {
+    TCB *tcb;
+    int count = 0;
+
+    printf("============= Task Total Count [%d] =============\n", get_task_count());
+    for (int i = 0; i < TASK_MAXCOUNT; ++i) {
+        tcb = get_tcb_in_tcb_pool(i);
+        if ((tcb->link.id >> 32) != 0) {
+            if ((count != 0) && ((count % 10) == 0)) {
+                printf("Press any key to continue... ('q' is exit) : ");
+                if (getch() == 'q') {
+                    printf("\n");
+                    break;
+                }
+                printf("\n");
+            }
+
+            printf("[%d] Task ID[0x%Q], Priority[%d], Flags[0x%Q]\n", 1 + count++,
+                                            tcb->link.id, GETPRIORITY(tcb->flags),
+                                            tcb->flags);
+        }
+    }
+}
+
+static void cmd_killtask(const char *param) {
+    struct parameter_list param_list;
+    char param_id[30];
+    QWORD id;
+
+    initialize_parameter(&param_list, param);
+    get_next_param(&param_list, param_id);
+    
+    if (memcmp(param_id, "0x", 2) == 0) {
+        id = atoi(param_id + 2, 16);
+    }
+    else {
+        id = atoi(param_id, 10);
+    }
+
+    printf("Kill Task ID [0x%q] ", id);
+    if (end_task(id) == TRUE) {
+        printf("Success\n");
+    }
+    else {
+        printf("Fail\n");
+    }
+}
+
+static void cmd_cpuload(const char *param) {
+    printf("Processor Load : %d%%\n", get_processor_load());
 }

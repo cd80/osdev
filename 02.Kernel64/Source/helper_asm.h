@@ -14,5 +14,6 @@ void disable_interrupt(void);
 QWORD read_rflags(void);
 QWORD read_tsc(void);
 void switch_context(CONTEXT *cur_ctx, CONTEXT *next_ctx);
+void halt(void);
 
 #endif
