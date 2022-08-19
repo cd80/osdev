@@ -44,4 +44,6 @@ static void cmd_changepriority(const char *param);
 static void cmd_tasklist(const char *param);
 static void cmd_killtask(const char *param);
 static void cmd_cpuload(const char *param);
+static void cmd_testmutex(const char *param);
+
 #endif

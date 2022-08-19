@@ -3,11 +3,12 @@
 #include "utility.h"
 #include "helper_asm.h"
 #include "console.h"
+#include "sync.h"
 
 static SCHEDULER scheduler;
 static TCBPOOLMANAGER tcb_pool_manager;
 
-void initialize_tcb_pool(void) {
+static void initialize_tcb_pool(void) {
     memset(&(tcb_pool_manager), 0, sizeof(tcb_pool_manager));
 
     tcb_pool_manager.start_address = (TCB *)TASK_TCBPOOLADDRESS;
@@ -21,7 +22,7 @@ void initialize_tcb_pool(void) {
     tcb_pool_manager.allocated_count = 1;
 }
 
-TCB *allocate_tcb(void) {
+static TCB *allocate_tcb(void) {
     int i;
     TCB *empty_tcb;
     if (tcb_pool_manager.use_count == TASK_MAXCOUNT) {
@@ -45,7 +46,7 @@ TCB *allocate_tcb(void) {
     return empty_tcb;
 }
 
-void free_tcb(QWORD id) {
+static void free_tcb(QWORD id) {
     int i;
     i = GETTCBOFFSET(id);
 
@@ -58,8 +59,11 @@ void free_tcb(QWORD id) {
 TCB *create_task(QWORD flags, QWORD entry_point) {
     TCB *task;
     void *stack_address;
+    BOOL prev_flag;
 
+    prev_flag = lock_system();
     task = allocate_tcb();
+    unlock_system(prev_flag);
     if (task == NULL) {
         return NULL;
     }
@@ -67,12 +71,15 @@ TCB *create_task(QWORD flags, QWORD entry_point) {
     stack_address = (void *)(TASK_STACKPOOLADDRESS + (TASK_STACKSIZE * 
                                             GETTCBOFFSET(task->link.id)));
     setup_task(task, flags, entry_point, stack_address, TASK_STACKSIZE);
+
+    prev_flag = lock_system();
     add_task_to_ready_list(task);
+    unlock_system(prev_flag);
 
     return task;
 }
 
-void setup_task(TCB *tcb, QWORD flags, QWORD entry_point,
+static void setup_task(TCB *tcb, QWORD flags, QWORD entry_point,
                 void *stack_address, QWORD stack_size) {
     memset(tcb->ctx.registers, 0, sizeof(tcb->ctx.registers));
 
@@ -113,14 +120,24 @@ BOOL initialize_scheduler(void) {
 }
 
 void set_running_task(TCB *task) {
+    BOOL prev_flag;
+
+    prev_flag = lock_system();
     scheduler.running_task = task;
+    unlock_system(prev_flag);
 }
 
 TCB *get_running_task(void) {
-    return scheduler.running_task;
+    TCB *running_task;
+    BOOL prev_flag;
+
+    prev_flag = lock_system();
+    running_task = scheduler.running_task;
+    unlock_system(prev_flag);
+    return running_task;
 }
 
-TCB *get_next_task_to_run(void) {
+static TCB *get_next_task_to_run(void) {
     TCB *target = NULL;
     int task_count;
     for (int j = 0; j < 2; ++j) {
@@ -142,7 +159,7 @@ TCB *get_next_task_to_run(void) {
     return target;
 }
 
-BOOL add_task_to_ready_list(TCB *task) {
+static BOOL add_task_to_ready_list(TCB *task) {
     BYTE priority;
     priority = GETPRIORITY(task->flags);
     if (priority >= TASK_MAXREADYLISTCOUNT) {
@@ -153,7 +170,7 @@ BOOL add_task_to_ready_list(TCB *task) {
     return TRUE;
 }
 
-TCB *remove_task_from_ready_list(QWORD id) {
+static TCB *remove_task_from_ready_list(QWORD id) {
     TCB *target;
     BYTE priority;
 
@@ -173,9 +190,12 @@ TCB *remove_task_from_ready_list(QWORD id) {
 
 BOOL change_priority(QWORD id, BYTE priority) {
     TCB *target;
+    BOOL prev_flag;
     if (priority > TASK_MAXREADYLISTCOUNT) {
         return FALSE;
     }
+
+    prev_flag = lock_system();
 
     target = scheduler.running_task;
     if (target->link.id == id) {
@@ -195,6 +215,7 @@ BOOL change_priority(QWORD id, BYTE priority) {
         }
     }
 
+    unlock_system(prev_flag);
     return TRUE;
 }
 
@@ -206,11 +227,11 @@ void schedule(void) {
         return;
     }
 
-    prev_flag = set_interrupt_flag(FALSE);
+    prev_flag = lock_system();
 
     next_task = get_next_task_to_run();
     if (next_task == NULL) {
-        set_interrupt_flag(prev_flag);
+        unlock_system(prev_flag);
         return;
     }
 
@@ -232,15 +253,19 @@ void schedule(void) {
         switch_context(&(running_task->ctx), &(next_task->ctx));
     }
 
-    set_interrupt_flag(prev_flag);
+    unlock_system(prev_flag);
 }
 
 BOOL schedule_in_interrupt(void) {
     TCB *running_task, *next_task;
     char *ctx_address;
+    BOOL prev_flag;
+
+    prev_flag = lock_system();
 
     next_task = get_next_task_to_run();
     if (next_task == NULL) {
+        unlock_system(prev_flag);
         return FALSE;
     }
 
@@ -252,6 +277,8 @@ BOOL schedule_in_interrupt(void) {
     if ((running_task->flags & TASK_FLAGS_IDLE) == TASK_FLAGS_IDLE) {
         scheduler.spent_processor_time_in_idle_task += TASK_PROCESSORTIME;
     }
+
+    scheduler.processor_time = TASK_PROCESSORTIME;
     
     if (running_task->flags & TASK_FLAGS_ENDTASK) {
         add_list_to_tail(&(scheduler.wait_list), running_task);
@@ -260,9 +287,10 @@ BOOL schedule_in_interrupt(void) {
         memcpy(&(running_task->ctx), ctx_address, sizeof(CONTEXT));
         add_task_to_ready_list(running_task);
     }
-    memcpy(ctx_address, &(next_task->ctx), sizeof(CONTEXT));
 
-    scheduler.processor_time = TASK_PROCESSORTIME;
+    unlock_system(prev_flag);
+    memcpy(ctx_address, &(next_task->ctx), sizeof(CONTEXT));
+    
     return TRUE;
 }
 
@@ -282,12 +310,16 @@ BOOL is_processor_time_expired(void) {
 BOOL end_task(QWORD id) {
     TCB *target;
     BYTE priority;
+    BOOL prev_flag;
+
+    prev_flag = lock_system();
 
     target = scheduler.running_task;
     if (target->link.id == id) {
         target->flags |= TASK_FLAGS_ENDTASK;
         SETPRIORITY(target->flags, TASK_FLAGS_WAIT);
 
+        unlock_system(prev_flag);
         schedule();
         while(1) {}
     }
@@ -299,13 +331,17 @@ BOOL end_task(QWORD id) {
                 target->flags |= TASK_FLAGS_ENDTASK;
                 SETPRIORITY(target->flags, TASK_FLAGS_WAIT);
             }
-            return FALSE; // ?
+
+            unlock_system(prev_flag);
+            return TRUE;
         }
 
         target->flags |= TASK_FLAGS_ENDTASK;
         SETPRIORITY(target->flags, TASK_FLAGS_WAIT);
         add_list_to_tail(&(scheduler.wait_list), target);
     }
+
+    unlock_system(prev_flag);
     return TRUE;
 }
 
@@ -315,18 +351,26 @@ void exit_task(void) {
 
 int get_ready_task_count(void) {
     int total_count = 0;
+    BOOL prev_flag;
+
+    prev_flag = lock_system();
     for (int i = 0; i < TASK_MAXREADYLISTCOUNT; ++i) {
         total_count += get_list_count(&(scheduler.ready_list[i]));
     }
+    unlock_system(prev_flag);
     return total_count;
 }
 
 int get_task_count(void) {
     int total_count;
+    BOOL prev_flag;
+
     
     total_count = get_ready_task_count();
-    total_count += get_list_count(&(scheduler.wait_list)) + 1;
 
+    prev_flag = lock_system();
+    total_count += get_list_count(&(scheduler.wait_list)) + 1;
+    unlock_system(prev_flag);
     return total_count;
 }
 
@@ -355,6 +399,7 @@ void idle_task(void) {
     TCB *task;
     QWORD last_tick_count, last_spent_tick_in_idle_task;
     QWORD cur_tick_count, cur_spent_tick_in_idle_task;
+    BOOL prev_flag;
 
     last_spent_tick_in_idle_task = scheduler.spent_processor_time_in_idle_task;
     last_tick_count = get_tick_count();
@@ -379,12 +424,15 @@ void idle_task(void) {
 
         if (get_list_count(&(scheduler.wait_list)) >= 0) {
             while (1) {
+                prev_flag = lock_system();
                 task = remove_list_from_header(&(scheduler.wait_list));
                 if (task == NULL) {
+                    unlock_system(prev_flag);
                     break;
                 }
                 printf("IDLE: Task ID[0x%q] is completely ended.\n", task->link.id);
                 free_tcb(task->link.id);
+                unlock_system(prev_flag);
             }
         }
 

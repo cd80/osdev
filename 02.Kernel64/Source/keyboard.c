@@ -3,6 +3,7 @@
 #include "keyboard.h"
 #include "queue.h"
 #include "utility.h"
+#include "sync.h"
 
 struct keyboard_manager keyboard = {0, };
 static struct generic_queue key_queue;
@@ -27,7 +28,7 @@ BOOL activate_keyboard(void) {
     // activate keyboard in controller
     BOOL prev_interrupt;
     BOOL ack_result;
-    prev_interrupt = set_interrupt_flag(FALSE);
+    prev_interrupt = lock_system();
     out1(0x64, 0xae);
 
     wait_in();
@@ -37,7 +38,7 @@ BOOL activate_keyboard(void) {
     out1(0x60, 0xf4);
     ack_result = wait_ack();
 
-    set_interrupt_flag(prev_interrupt);
+    unlock_system(prev_interrupt);
     return ack_result;
 }
 
@@ -51,14 +52,14 @@ BOOL change_led(BOOL is_capslock, BOOL is_numlock, BOOL is_scrolllock) {
     BOOL prev_interrupt;
     BOOL ack_result;
 
-    prev_interrupt = set_interrupt_flag(FALSE);
+    prev_interrupt = lock_system();
 
     wait_in();
     out1(0x60, 0xED);
 
     wait_in();
     if(!wait_ack()) {
-        set_interrupt_flag(prev_interrupt);
+        unlock_system(prev_interrupt);
         return FALSE;
     }
 
@@ -69,7 +70,7 @@ BOOL change_led(BOOL is_capslock, BOOL is_numlock, BOOL is_scrolllock) {
 
     ack_result = wait_ack();
     
-    set_interrupt_flag(prev_interrupt);
+    unlock_system(prev_interrupt);
     return ack_result;
 }
 
@@ -266,9 +267,9 @@ BOOL convert_scancode_and_put_queue(BYTE scan_code)  {
     data.scan_code = scan_code;
 
     if(scancode_to_ascii(scan_code, &(data.ascii_code), &data.flags)) {
-        prev_interrupt = set_interrupt_flag(FALSE);
+        prev_interrupt = lock_system();
         result = put_queue(&key_queue, &data);
-        set_interrupt_flag(prev_interrupt);
+        unlock_system(prev_interrupt);
     }
 
     return result;
@@ -281,9 +282,9 @@ BOOL get_key_from_key_queue(struct keydata *data) {
         return FALSE;
     }
 
-    prev_interrupt = set_interrupt_flag(FALSE);
+    prev_interrupt = lock_system();
     result = get_queue(&key_queue, data);
-    set_interrupt_flag(prev_interrupt);
+    unlock_system(prev_interrupt);
 
     return result;
 }

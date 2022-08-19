@@ -15,5 +15,6 @@ QWORD read_rflags(void);
 QWORD read_tsc(void);
 void switch_context(CONTEXT *cur_ctx, CONTEXT *next_ctx);
 void halt(void);
+BOOL test_and_set(volatile BYTE *dest, BYTE cmp, BYTE src);
 
 #endif

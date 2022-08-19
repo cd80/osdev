@@ -4,7 +4,7 @@ SECTION .text
 
 global in1, out1, load_gdtr, load_tr, load_idtr
 global enable_interrupt, disable_interrupt, read_rflags, read_tsc
-global switch_context, halt
+global switch_context, halt, test_and_set
 
 in1:
     push rdx
@@ -157,4 +157,17 @@ halt:
     hlt
     hlt
     ret
-    
+
+test_and_set:
+    mov rax, rsi
+
+    lock cmpxchg byte [ rdi ], dl
+    je .SUCCESS
+
+    .NOTSAME:
+        mov rax, 0
+        ret
+
+    .SUCCESS:
+        mov rax, 1
+        ret

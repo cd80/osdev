@@ -6,6 +6,7 @@
 #include "rtc.h"
 #include "helper_asm.h"
 #include "task.h"
+#include "sync.h"
 
 struct shell_command_entry command_table[] = {
     { "help", "Show help", cmd_help },
@@ -21,8 +22,9 @@ struct shell_command_entry command_table[] = {
     { "createtask", "Create Task, ex)createtask 1(type) 10(count)", cmd_createtask },
     { "changepriority", "Change task priority, ex) changepriority 1(ID) 2(Priority)", cmd_changepriority },
     { "tasklist", "Show task list", cmd_tasklist },
-    { "killtask", "End Task, ex) killtask 1(ID)", cmd_killtask },
+    { "killtask", "End Task, ex) killtask 1(ID) or 0xffffffff(All task)", cmd_killtask },
     { "cpuload", "Show processor load", cmd_cpuload },
+    { "testmutex", "Test mutex function", cmd_testmutex },
 };
 
 void start_console_shell(void) {
@@ -445,6 +447,7 @@ static void cmd_killtask(const char *param) {
     struct parameter_list param_list;
     char param_id[30];
     QWORD id;
+    TCB *tcb;
 
     initialize_parameter(&param_list, param);
     get_next_param(&param_list, param_id);
@@ -456,15 +459,72 @@ static void cmd_killtask(const char *param) {
         id = atoi(param_id, 10);
     }
 
-    printf("Kill Task ID [0x%q] ", id);
-    if (end_task(id) == TRUE) {
-        printf("Success\n");
+    if (id != 0xFFFFFFFF) {
+        printf("Kill Task ID [0x%q] ", id);
+        if (end_task(id) == TRUE) {
+            printf("Success\n");
+        }
+        else {
+            printf("Fail\n");
+        }
     }
     else {
-        printf("Fail\n");
+        for (int i = 2; i < TASK_MAXCOUNT; ++i) {
+            tcb = get_tcb_in_tcb_pool(i);
+            id = tcb->link.id;
+            if ((id >> 32) != 0) {
+                printf("Kill Task ID [0x%q] ", id);
+                if (end_task(id) == TRUE) {
+                    printf("Success\n");
+                }
+                else {
+                    printf("Fail\n");
+                }
+            }
+        }
     }
 }
 
 static void cmd_cpuload(const char *param) {
     printf("Processor Load : %d%%\n", get_processor_load());
+}
+
+static MUTEX lock;
+static volatile QWORD g_adder;
+
+static void print_number_task(void) {
+    QWORD tick_count;
+    tick_count = get_tick_count();
+    while ((get_tick_count() - tick_count) < 50) {
+        schedule();
+    }
+
+    for (int i = 0; i < 5; ++i) {
+        mutex_lock(&(lock));
+        printf("Task ID [0x%Q] Value[%d]\n", get_running_task()->link.id, g_adder);
+
+        g_adder += 1;
+        mutex_unlock(&(lock));
+
+        for (int j = 0; j < 300000; ++j) { }
+    }
+
+    tick_count = get_tick_count();
+    while ((get_tick_count() - tick_count) < 1000) {
+        schedule();
+    }
+    exit_task();
+}
+
+static void cmd_testmutex(const char *param) {
+    int i;
+    g_adder = 1;
+    init_mutex(&lock);
+
+    for (int i = 0; i < 3; ++i) {
+        create_task(TASK_FLAGS_LOW, (QWORD)print_number_task);
+    }
+
+    printf("Wait until %d task end...\n", i);
+    getch();
 }

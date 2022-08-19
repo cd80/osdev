@@ -35,7 +35,7 @@
 #define TASK_TCBPOOLADDRESS ((void *)(0x800000))
 #define TASK_MAXCOUNT       1024
 
-#define TASK_STACKPOOLADDRESS   (TASK_TCBPOOLADDRESS + sizeof(TCB) * TASK_MAXCOUNT)
+#define TASK_STACKPOOLADDRESS   (TASK_TCBPOOLADDRESS + (sizeof(TCB) * TASK_MAXCOUNT))
 #define TASK_STACKSIZE      8192
 #define TASK_INVALIDID      0xFFFFFFFFFFFFFFFF
 
@@ -94,23 +94,23 @@ typedef struct _SCHEDULER {
 
 #pragma pack(pop)
 
-void initialize_tcb_pool(void);
-TCB *allocate_tcb(void);
-void free_tcb(QWORD id);
+static void initialize_tcb_pool(void);
+static TCB *allocate_tcb(void);
+static void free_tcb(QWORD id);
 TCB *create_task(QWORD flags, QWORD entry_point);
-void setup_task(TCB *tcb, QWORD flags, QWORD entry_point,
+static void setup_task(TCB *tcb, QWORD flags, QWORD entry_point,
                 void *stack_address, QWORD stack_size);
 
 BOOL initialize_scheduler(void);
 void set_running_task(TCB *task);
 TCB *get_running_task(void);
-TCB *get_next_task_to_run(void);
-BOOL add_task_to_ready_list(TCB *task);
+static TCB *get_next_task_to_run(void);
+static BOOL add_task_to_ready_list(TCB *task);
 void schedule(void);
 BOOL schedule_in_interrupt(void);
 void decrease_processor_time(void);
 BOOL is_processor_time_expired(void);
-TCB *remove_task_from_ready_list(QWORD id);
+static TCB *remove_task_from_ready_list(QWORD id);
 BOOL change_priority(QWORD id, BYTE priority);
 BOOL end_task(QWORD id);
 void exit_task(void);
