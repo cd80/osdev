@@ -335,3 +335,11 @@ int vsprintf(char *buf, const char *fmt, va_list ap) {
 QWORD get_tick_count(void) {
     return g_tick_count;
 }
+
+void sleep(QWORD millisecond) {
+    QWORD last_tick_count;
+    last_tick_count = g_tick_count;
+    while ((g_tick_count - last_tick_count) <= millisecond) {
+        schedule();
+    }
+}

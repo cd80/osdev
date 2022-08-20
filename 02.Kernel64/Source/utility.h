@@ -23,6 +23,7 @@ int dec_to_string(long value, char *buf);
 int sprintf(char *buf, const char *fmt, ...);
 int vsprintf(char *buf, const char *fmt, va_list ap);
 QWORD get_tick_count(void);
+void sleep(QWORD millisecond);
 
 extern volatile QWORD g_tick_count;
 

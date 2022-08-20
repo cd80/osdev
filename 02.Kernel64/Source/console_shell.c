@@ -25,6 +25,8 @@ struct shell_command_entry command_table[] = {
     { "killtask", "End Task, ex) killtask 1(ID) or 0xffffffff(All task)", cmd_killtask },
     { "cpuload", "Show processor load", cmd_cpuload },
     { "testmutex", "Test mutex function", cmd_testmutex },
+    { "testthread", "Test thread and process", cmd_testthread },
+    { "showmatrix", "Show matrix screen", cmd_showmatrix },
 };
 
 void start_console_shell(void) {
@@ -355,7 +357,6 @@ static void test_task2(void) {
         screen[offset].character = data[i % 4];
         screen[offset].attr = (offset % 15) + 1;
         i++;
-
     }
 }
 
@@ -372,7 +373,7 @@ static void cmd_createtask(const char *param) {
     switch(atoi(type, 10)) {
         case 1:
             for (i = 0; i < atoi(count, 10); ++i) {
-                if (create_task(TASK_FLAGS_LOW, (QWORD)test_task1) == NULL) {
+                if (create_task(TASK_FLAGS_LOW | TASK_FLAGS_THREAD, 0, 0, (QWORD)test_task1) == NULL) {
                     break;
                 }
             }
@@ -381,7 +382,7 @@ static void cmd_createtask(const char *param) {
         case 2:
         default:
             for (i = 0; i < atoi(count, 10); ++i) {
-                if (create_task(TASK_FLAGS_LOW, (QWORD)test_task2) == NULL) {
+                if (create_task(TASK_FLAGS_LOW | TASK_FLAGS_THREAD, 0, 0, (QWORD)test_task2) == NULL) {
                     break;
                 }
             }
@@ -436,9 +437,11 @@ static void cmd_tasklist(const char *param) {
                 printf("\n");
             }
 
-            printf("[%d] Task ID[0x%Q], Priority[%d], Flags[0x%Q]\n", 1 + count++,
+            printf("[%d] Task ID[0x%Q], Priority[%d], Flags[0x%Q], Thread[%d]\n", 1 + count++,
                                             tcb->link.id, GETPRIORITY(tcb->flags),
-                                            tcb->flags);
+                                            tcb->flags, get_list_count(&(tcb->child_thread_list)));
+            printf("    Parent PID[0x%Q], MemoryAddress[0x%Q], Size[0x%Q]\n",
+                        tcb->parent_pid, tcb->memory_address, tcb->memory_size);
         }
     }
 }
@@ -460,19 +463,26 @@ static void cmd_killtask(const char *param) {
     }
 
     if (id != 0xFFFFFFFF) {
-        printf("Kill Task ID [0x%q] ", id);
-        if (end_task(id) == TRUE) {
-            printf("Success\n");
+        tcb = get_tcb_in_tcb_pool(GETTCBOFFSET(id));
+        id = tcb->link.id;
+        if (((id >> 32) != 0) && ((tcb->flags & TASK_FLAGS_SYSTEM) == 0x00)) {
+            printf("Kill Task ID [0x%q] ", id);
+            if (end_task(id) == TRUE) {
+                printf("Success\n");
+            }
+            else {
+                printf("Fail\n");
+            }
         }
         else {
-            printf("Fail\n");
+            printf("Task does not exist or task is system task\n");
         }
     }
     else {
         for (int i = 2; i < TASK_MAXCOUNT; ++i) {
             tcb = get_tcb_in_tcb_pool(i);
             id = tcb->link.id;
-            if ((id >> 32) != 0) {
+            if ((id >> 32) != 0 && ((tcb->flags & TASK_FLAGS_SYSTEM) == 0x00)) {
                 printf("Kill Task ID [0x%q] ", id);
                 if (end_task(id) == TRUE) {
                     printf("Success\n");
@@ -522,9 +532,92 @@ static void cmd_testmutex(const char *param) {
     init_mutex(&lock);
 
     for (int i = 0; i < 3; ++i) {
-        create_task(TASK_FLAGS_LOW, (QWORD)print_number_task);
+        create_task(TASK_FLAGS_LOW | TASK_FLAGS_THREAD, 0, 0, (QWORD)print_number_task);
     }
 
     printf("Wait until %d task end...\n", i);
     getch();
+}
+
+static void create_thread_task(void) {
+    for (int i = 0; i < 3; ++i) {
+        create_task(TASK_FLAGS_LOW | TASK_FLAGS_THREAD, 0, 0, (QWORD)test_task2);
+    }
+
+    while (1) {
+        sleep(1);
+    }
+}
+
+static void cmd_testthread(const char *param) {
+    TCB *process;
+    process = create_task(TASK_FLAGS_LOW | TASK_FLAGS_PROCESS, (void *)0xEEEEEEEE, 0x1000, (QWORD)create_thread_task);
+
+    if (process != NULL) {
+        printf("Process [0x%Q] created\n", process->link.id);
+    }
+    else {
+        printf("Create process fail\n");
+    }
+}
+
+static volatile QWORD g_random_value = 0;
+
+QWORD random(void) {
+    g_random_value = (g_random_value * 412153 + 5571031) >> 16;
+    return g_random_value;
+}
+
+static void drop_character_thread(void) {
+    int x, y;
+    char text[2] = {0, };
+
+    x = random() % CONSOLE_WIDTH;
+
+    while (1) {
+        sleep(random() % 20);
+        if ((random() % 20) < 15) {
+            text[0] = ' ';
+            for (int i = 0; i < CONSOLE_HEIGHT - 1; ++i) {
+                printat(x, i, text);
+                sleep(50);
+            }
+        }
+        else {
+            for (int i = 0 ; i < CONSOLE_HEIGHT - 1; ++i) {
+                text[0] = i + random();
+                printat(x, i, text);
+                sleep(50);
+            }
+        }
+    }
+}
+
+static void matrix_process(void) {
+    int i;
+    for (i = 0; i < 300; ++i) {
+        if (create_task(TASK_FLAGS_THREAD | TASK_FLAGS_LOW, 0, 0,
+                        (QWORD)drop_character_thread) == NULL) {
+            break;
+        }
+        sleep((random() % 5) + 5);
+    }
+    printf("  %d thread is created\n", i);
+    getch();
+}
+
+static void cmd_showmatrix(const char *param) {
+    TCB *process;
+    process = create_task(TASK_FLAGS_PROCESS | TASK_FLAGS_LOW, (void *)0xe00000, 0xe00000,
+                            (QWORD)matrix_process);
+    if (process != NULL) {
+        printf("Matrix process [0x%Q] created successfully\n", process->link.id);
+
+        while ((process->link.id >> 32) != 0) {
+            sleep(100);
+        }
+    }
+    else {
+        printf("Failed to create matrix process\n");
+    }
 }

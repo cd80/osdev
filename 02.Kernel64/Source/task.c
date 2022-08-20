@@ -56,21 +56,48 @@ static void free_tcb(QWORD id) {
     tcb_pool_manager.use_count--;
 }
 
-TCB *create_task(QWORD flags, QWORD entry_point) {
-    TCB *task;
+TCB *create_task(QWORD flags, void *memory_address,
+                QWORD memory_size, QWORD entry_point) {
+    TCB *task, *process;
     void *stack_address;
     BOOL prev_flag;
 
     prev_flag = lock_system();
     task = allocate_tcb();
-    unlock_system(prev_flag);
     if (task == NULL) {
+        unlock_system(prev_flag);
         return NULL;
     }
+
+    process = get_process_by_thread(get_running_task());
+    if (process == NULL) {
+        free_tcb(task->link.id);
+        unlock_system(prev_flag);
+        return NULL;
+    }
+
+    if (flags & TASK_FLAGS_THREAD) {
+        task->parent_pid = process->link.id;
+        task->memory_address = process->memory_address;
+        task->memory_size = process->memory_size;
+
+        add_list_to_tail(&(process->child_thread_list), &(task->thread_link));
+    }
+    else {
+        task->parent_pid = process->link.id;
+        task->memory_address = memory_address;
+        task->memory_size = memory_size;
+    }
+
+    task->thread_link.id = task->link.id;
+
+    unlock_system(prev_flag);
 
     stack_address = (void *)(TASK_STACKPOOLADDRESS + (TASK_STACKSIZE * 
                                             GETTCBOFFSET(task->link.id)));
     setup_task(task, flags, entry_point, stack_address, TASK_STACKSIZE);
+
+    initialize_list(&(task->child_thread_list));
 
     prev_flag = lock_system();
     add_task_to_ready_list(task);
@@ -83,8 +110,9 @@ static void setup_task(TCB *tcb, QWORD flags, QWORD entry_point,
                 void *stack_address, QWORD stack_size) {
     memset(tcb->ctx.registers, 0, sizeof(tcb->ctx.registers));
 
-    tcb->ctx.registers[TASK_RSPOFFSET] = (QWORD)stack_address + stack_size;
-    tcb->ctx.registers[TASK_RBPOFFSET] = (QWORD)stack_address + stack_size;
+    tcb->ctx.registers[TASK_RSPOFFSET] = (QWORD)stack_address + stack_size - 8;
+    tcb->ctx.registers[TASK_RBPOFFSET] = (QWORD)stack_address + stack_size - 8;
+    *(QWORD *)((QWORD)stack_address + stack_size - 8) = (QWORD)exit_task;
 
     tcb->ctx.registers[TASK_CSOFFSET] = GDT_KERNELCODESEGMENT;
     tcb->ctx.registers[TASK_DSOFFSET] = GDT_KERNELDATASEGMENT;
@@ -102,6 +130,7 @@ static void setup_task(TCB *tcb, QWORD flags, QWORD entry_point,
 }
 
 BOOL initialize_scheduler(void) {
+    TCB *task;
     initialize_tcb_pool();
 
     for (int i = 0; i < TASK_MAXREADYLISTCOUNT; ++i) {
@@ -110,8 +139,14 @@ BOOL initialize_scheduler(void) {
     }
     initialize_list(&(scheduler.wait_list));
 
-    scheduler.running_task = allocate_tcb();
-    scheduler.running_task->flags = TASK_FLAGS_HIGHEST;
+    task = allocate_tcb();
+    scheduler.running_task = task;
+    task->flags = TASK_FLAGS_HIGHEST | TASK_FLAGS_PROCESS | TASK_FLAGS_SYSTEM;
+    task->parent_pid = task->link.id;
+    task->memory_address = (void *)0x100000;
+    task->memory_size = 0x500000;
+    task->stack_address = (void *)0x600000;
+    task->stack_size = 0x100000;
 
     scheduler.spent_processor_time_in_idle_task = 0;
     scheduler.processor_load = 0;
@@ -391,15 +426,33 @@ BOOL is_task_exist(QWORD id) {
     return TRUE;
 }
 
+static TCB *get_process_by_thread(TCB *thread) {
+    TCB *process;
+    
+    if (thread->flags & TASK_FLAGS_PROCESS) {
+        return thread;
+    }
+    
+    process = get_tcb_in_tcb_pool(GETTCBOFFSET(thread->parent_pid));
+
+    if (((process == NULL) || (process->link.id != thread->parent_pid))) {
+        return NULL;
+    }
+
+    return process;
+}
+
 QWORD get_processor_load(void) {
     return scheduler.processor_load;
 }
 
 void idle_task(void) {
-    TCB *task;
+    TCB *task, *child_thread, *process;;
     QWORD last_tick_count, last_spent_tick_in_idle_task;
     QWORD cur_tick_count, cur_spent_tick_in_idle_task;
     BOOL prev_flag;
+    int count;
+    void *thread_link;
 
     last_spent_tick_in_idle_task = scheduler.spent_processor_time_in_idle_task;
     last_tick_count = get_tick_count();
@@ -429,6 +482,37 @@ void idle_task(void) {
                 if (task == NULL) {
                     unlock_system(prev_flag);
                     break;
+                }
+
+                if (task->flags & TASK_FLAGS_PROCESS) {
+                    count = get_list_count(&(task->child_thread_list));
+                    for (int i = 0; i < count; ++i) {
+                        thread_link = (TCB *)remove_list_from_header(&(task->child_thread_list));
+                        if (thread_link == NULL) {
+                            break;
+                        }
+
+                        child_thread = GETTCBFROMTHREADLINK(thread_link);
+
+                        add_list_to_tail(&(task->child_thread_list), &(child_thread->thread_link));
+
+                        end_task(child_thread->link.id);
+                    }
+
+                    if (get_list_count(&(task->child_thread_list)) > 0) {
+                        add_list_to_tail(&(scheduler.wait_list), task);
+                        unlock_system(prev_flag);
+                        continue;
+                    }
+                    else {
+                        
+                    }
+                }
+                else if (task->flags & TASK_FLAGS_THREAD) {
+                    process = get_process_by_thread(task);
+                    if (process != NULL) {
+                        remove_list(&(process->child_thread_list), task->link.id);
+                    }
                 }
                 printf("IDLE: Task ID[0x%q] is completely ended.\n", task->link.id);
                 free_tcb(task->link.id);

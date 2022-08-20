@@ -45,5 +45,7 @@ static void cmd_tasklist(const char *param);
 static void cmd_killtask(const char *param);
 static void cmd_cpuload(const char *param);
 static void cmd_testmutex(const char *param);
+static void cmd_testthread(const char *param);
+static void cmd_showmatrix(const char *param);
 
 #endif

@@ -50,11 +50,16 @@
 #define TASK_FLAGS_WAIT     0xFF
 
 #define TASK_FLAGS_ENDTASK  0x8000000000000000
+#define TASK_FLAGS_SYSTEM   0x4000000000000000
+#define TASK_FLAGS_PROCESS  0x2000000000000000
+#define TASK_FLAGS_THREAD   0x1000000000000000
 #define TASK_FLAGS_IDLE     0x0800000000000000
 
 #define GETPRIORITY(x)      ((x) & 0xFF)
 #define SETPRIORITY(x, p)   ((x) = ((x) & 0xFFFFFFFFFFFFFF00) | (p))
 #define GETTCBOFFSET(x)     ((x) & 0xFFFFFFFF)     
+
+#define GETTCBFROMTHREADLINK(x) (TCB *)((QWORD)(x) - offsetof(TCB, thread_link))
 
 #pragma pack(push, 1)
 
@@ -72,6 +77,12 @@ typedef struct _TCB {
 
     void *stack_address;
     QWORD stack_size;
+
+    void *memory_address;
+    QWORD memory_size;
+    LISTLINK thread_link;
+    LIST child_thread_list;
+    QWORD parent_pid;
 } TCB;
 
 typedef struct _TCBPOOLMANAGER {
@@ -97,7 +108,8 @@ typedef struct _SCHEDULER {
 static void initialize_tcb_pool(void);
 static TCB *allocate_tcb(void);
 static void free_tcb(QWORD id);
-TCB *create_task(QWORD flags, QWORD entry_point);
+TCB *create_task(QWORD flags, void *memory_address, 
+                QWORD memory_size, QWORD entry_point);
 static void setup_task(TCB *tcb, QWORD flags, QWORD entry_point,
                 void *stack_address, QWORD stack_size);
 
@@ -118,6 +130,7 @@ int get_ready_task_count(void);
 int get_task_count(void);
 TCB *get_tcb_in_tcb_pool(int offset);
 BOOL is_task_exist(QWORD id);
+static TCB *get_process_by_thread(TCB *thread);
 QWORD get_processor_load(void);
 
 void idle_task(void);
