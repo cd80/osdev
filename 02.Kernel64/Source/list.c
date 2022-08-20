@@ -18,6 +18,7 @@ void add_list_to_tail(LIST *list, void *item) {
         list->header = item;
         list->tail = item;
         list->item_count = 1;
+        return;
     }
 
     link = (LISTLINK *)list->tail;
