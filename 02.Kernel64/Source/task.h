@@ -69,20 +69,19 @@ typedef struct _CONTEXT {
 
 typedef struct _TCB {
     LISTLINK link;
-
-    CONTEXT ctx;
-
-    QWORD id;
     QWORD flags;
-
-    void *stack_address;
-    QWORD stack_size;
-
     void *memory_address;
     QWORD memory_size;
     LISTLINK thread_link;
-    LIST child_thread_list;
     QWORD parent_pid;
+    QWORD fpu_ctx[512 / 8];
+    CONTEXT ctx;
+    QWORD id;
+    void *stack_address;
+    QWORD stack_size;
+    BOOL fpu_used;
+    LIST child_thread_list;
+    BYTE padding[3];
 } TCB;
 
 typedef struct _TCBPOOLMANAGER {
@@ -101,6 +100,7 @@ typedef struct _SCHEDULER {
     int execute_count[TASK_MAXREADYLISTCOUNT];
     QWORD processor_load;
     QWORD spent_processor_time_in_idle_task;
+    QWORD last_fpu_task_id;
 } SCHEDULER;
 
 #pragma pack(pop)
@@ -135,5 +135,8 @@ QWORD get_processor_load(void);
 
 void idle_task(void);
 void halt_processor_by_load(void);
+
+QWORD get_last_fpu_task_id(void);
+void set_last_fpu_task_id(QWORD task_id);
 
 #endif

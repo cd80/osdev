@@ -33,9 +33,9 @@ pop ebp
 ret
 
 switch_to_64bit:
-    ; set PAE=1 in cr4
+    ; set PAE=1, OSXMMEXCPT=1, OSFXSR=1 in cr4
     mov eax, cr4
-    or eax, 0x20
+    or eax, 0x620
     mov cr4, eax
 
     ; set PML4 base in CR4
@@ -49,9 +49,10 @@ switch_to_64bit:
     wrmsr
 
     ; set NW=0, CD=0, PG=1 to enable caching and paging
+    ; set TS=1, EM=0, MP=1 to enable FPU
     mov eax, cr0
-    or eax, 0xE0000000
-    xor eax, 0x60000000
+    or eax, 0xE000000E
+    xor eax, 0x60000004
     mov cr0, eax
 
     jmp 0x08:0x200000

@@ -3,7 +3,7 @@
 SECTION .text
 
 extern common_exception_handler, common_interrupt_handler, keyboard_handler
-extern timer_handler
+extern timer_handler, device_not_available_handler
 
 ; ISR for Exception
 global isr_divide_error, isr_debug, isr_nmi, isr_breakpoint, isr_overflow
@@ -218,7 +218,7 @@ isr_device_not_available:
     SAVE_CONTEXT
 
     mov rdi, 7
-    call common_exception_handler
+    call device_not_available_handler
 
     LOAD_CONTEXT
     iretq

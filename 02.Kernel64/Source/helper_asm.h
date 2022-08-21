@@ -17,4 +17,10 @@ void switch_context(CONTEXT *cur_ctx, CONTEXT *next_ctx);
 void halt(void);
 BOOL test_and_set(volatile BYTE *dest, BYTE cmp, BYTE src);
 
+void init_fpu(void);
+void save_fpu_ctx(void *fpu_ctx);
+void load_fpu_ctx(void *fpu_ctx);
+void set_ts(void);
+void clear_ts(void);
+
 #endif

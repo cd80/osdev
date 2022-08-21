@@ -27,6 +27,7 @@ struct shell_command_entry command_table[] = {
     { "testmutex", "Test mutex function", cmd_testmutex },
     { "testthread", "Test thread and process", cmd_testthread },
     { "showmatrix", "Show matrix screen", cmd_showmatrix },
+    { "testpi", "Test pi calculation", cmd_testpi },
 };
 
 void start_console_shell(void) {
@@ -619,5 +620,57 @@ static void cmd_showmatrix(const char *param) {
     }
     else {
         printf("Failed to create matrix process\n");
+    }
+}
+
+static void fpu_test_task(void) {
+    double value1, value2;
+    TCB *running_task;
+    QWORD count = 0;
+    QWORD random_value;
+    int offset;
+    char data[4] = {'-', '\\', '|', '/'};
+    CHARACTER *screen = (CHARACTER *)CONSOLE_VIDEOMEM;
+
+    running_task = get_running_task();
+
+    offset = (running_task->link.id & 0xFFFFFFFF) * 2;
+    offset = CONSOLE_WIDTH * CONSOLE_HEIGHT - (offset % (CONSOLE_WIDTH * CONSOLE_HEIGHT));
+
+    while (1) {
+        value1 = 1;
+        value2 = 1;
+
+        for (int i = 0; i < 10; ++i) {
+            random_value = random();
+            value1 *= (double)random_value;
+            value2 *= (double)random_value;
+
+            sleep(1);
+
+            random_value = random();
+            value1 /= (double)random_value;
+            value2 /= (double)random_value;
+        }
+
+        if (value1 != value2) {
+            printf("Value mismatch [%f] != [%f]\n", value1, value2);
+            break;
+        }
+        count++;
+        screen[offset].character = data[count%4];
+        screen[offset].attr = (offset%15) + 1;
+    }
+}
+
+static void cmd_testpi(const char *param) {
+    double result;
+    printf("PI calculation test\n");
+    printf("Result: 355 / 113 = ");
+    result = (double)355 / 113;
+    printf("%d.%d%d\n", (QWORD) result, ((QWORD)(result * 10) % 10), ((QWORD)(result * 100) % 10));
+
+    for (int i = 0; i < 100; ++i) {
+        create_task(TASK_FLAGS_LOW | TASK_FLAGS_THREAD, 0, 0, (QWORD) fpu_test_task);
     }
 }

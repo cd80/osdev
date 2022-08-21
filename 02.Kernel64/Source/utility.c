@@ -277,8 +277,10 @@ int vsprintf(char *buf, const char *fmt, va_list ap) {
     int copy_length;
     int buf_idx = 0;
     int fmt_length = 0;
+    int double_length = 0;
     int long_value;
     QWORD qword_value;
+    double double_value;
 
     fmt_length = strlen(fmt);
     for (int i = 0; i < fmt_length; ++i) {
@@ -314,6 +316,25 @@ int vsprintf(char *buf, const char *fmt, va_list ap) {
                 case 'p':
                     qword_value = (QWORD)(va_arg(ap, QWORD));
                     buf_idx += itoa(qword_value, buf + buf_idx, 16);
+                    break;
+
+                case 'f':
+                    double_value = (double)(va_arg(ap, double));
+                    double_value += 0.005;
+                    buf[buf_idx] = '0' + ((QWORD)(double_value * 100) % 10);
+                    buf[buf_idx + 1] = '0' + ((QWORD)(double_value * 10) % 10);
+                    buf[buf_idx + 2] = '.';
+
+                    for (double_length = 0; ; ++double_length) {
+                        if (((QWORD)double_value == 0) && (double_length != 0)) {
+                            break;
+                        }
+                        buf[buf_idx + 3 + double_length] = '0' + ((QWORD)double_value % 10);
+                        double_value = double_value / 10;
+                    }
+                    buf[buf_idx + 3 + double_length] = '\0';
+                    reverse_string(buf + buf_idx);
+                    buf_idx += 3 + double_length;
                     break;
                 
                 default:

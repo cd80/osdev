@@ -5,6 +5,7 @@
 #include "console.h"
 #include "task.h"
 #include "descriptor.h"
+#include "helper_asm.h"
 
 void common_exception_handler(int vector, QWORD error_code) {
     char buf[3] = {0, };
@@ -73,4 +74,43 @@ void timer_handler(int vector) {
     if (is_processor_time_expired() == TRUE) {
         schedule_in_interrupt();
     }
+}
+
+void device_not_available_handler(int vector) {
+    TCB *fpu_task, *cur_task;
+    QWORD last_fpu_task_id;
+
+    char buf[] = "[EXC:  , ]";
+    static int g_fpu_interrupt_count = 0;
+
+    buf[5] = '0' + (vector / 10);
+    buf[6] = '0' + (vector % 10);
+
+    buf[8] = '0' + g_fpu_interrupt_count;
+    g_fpu_interrupt_count = (g_fpu_interrupt_count + 1) % 10;
+    printat(0, 0, buf);
+
+    clear_ts();
+
+    last_fpu_task_id = get_last_fpu_task_id();
+    cur_task = get_running_task();
+
+    if (last_fpu_task_id == cur_task->link.id) {
+        return;
+    }
+    else if (last_fpu_task_id != TASK_INVALIDID) {
+        fpu_task = get_tcb_in_tcb_pool(GETTCBOFFSET(last_fpu_task_id));
+        if ((fpu_task != NULL) && (fpu_task->link.id == last_fpu_task_id)) {
+            save_fpu_ctx(fpu_task->fpu_ctx);
+        }
+    }
+
+    if (cur_task->fpu_used == FALSE) {
+        init_fpu();
+    }
+    else {
+        load_fpu_ctx(cur_task->fpu_ctx);
+    }
+
+    set_last_fpu_task_id(cur_task->link.id);
 }

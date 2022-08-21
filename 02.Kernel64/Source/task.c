@@ -99,6 +99,8 @@ TCB *create_task(QWORD flags, void *memory_address,
 
     initialize_list(&(task->child_thread_list));
 
+    task->fpu_used = FALSE;
+
     prev_flag = lock_system();
     add_task_to_ready_list(task);
     unlock_system(prev_flag);
@@ -150,6 +152,7 @@ BOOL initialize_scheduler(void) {
 
     scheduler.spent_processor_time_in_idle_task = 0;
     scheduler.processor_load = 0;
+    scheduler.last_fpu_task_id = TASK_INVALIDID;
 
     return TRUE;
 }
@@ -277,6 +280,13 @@ void schedule(void) {
         scheduler.spent_processor_time_in_idle_task += TASK_PROCESSORTIME - scheduler.processor_time;
     }
 
+    if (scheduler.last_fpu_task_id != next_task->link.id) {
+        set_ts();
+    }
+    else {
+        clear_ts();
+    }
+
     scheduler.processor_time = TASK_PROCESSORTIME;
 
     if (running_task->flags & TASK_FLAGS_ENDTASK) {
@@ -323,7 +333,15 @@ BOOL schedule_in_interrupt(void) {
         add_task_to_ready_list(running_task);
     }
 
+    if (scheduler.last_fpu_task_id != next_task->link.id) {
+        set_ts();
+    }
+    else {
+        clear_ts();
+    }
+
     unlock_system(prev_flag);
+
     memcpy(ctx_address, &(next_task->ctx), sizeof(CONTEXT));
     
     return TRUE;
@@ -537,4 +555,12 @@ void halt_processor_by_load(void) {
     else if (scheduler.processor_load < 95) {
         halt();
     }
+}
+
+QWORD get_last_fpu_task_id(void) {
+    return scheduler.last_fpu_task_id;
+}
+
+void set_last_fpu_task_id(QWORD task_id) {
+    scheduler.last_fpu_task_id = task_id;
 }

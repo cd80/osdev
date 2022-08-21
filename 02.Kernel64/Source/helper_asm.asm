@@ -5,6 +5,7 @@ SECTION .text
 global in1, out1, load_gdtr, load_tr, load_idtr
 global enable_interrupt, disable_interrupt, read_rflags, read_tsc
 global switch_context, halt, test_and_set
+global init_fpu, save_fpu_ctx, load_fpu_ctx, set_ts, clear_ts
 
 in1:
     push rdx
@@ -171,3 +172,28 @@ test_and_set:
     .SUCCESS:
         mov rax, 1
         ret
+
+init_fpu:
+    finit
+    ret
+
+save_fpu_ctx:
+    fxsave [ rdi ]
+    ret
+
+load_fpu_ctx:
+    fxrstor [ rdi ]
+    ret
+
+set_ts:
+    push rax
+    mov rax, cr0
+    or rax, 0x08
+    mov cr0, rax
+    
+    pop rax
+    ret
+
+clear_ts:
+    clts
+    ret
