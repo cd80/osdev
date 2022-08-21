@@ -635,7 +635,7 @@ static void fpu_test_task(void) {
     running_task = get_running_task();
 
     offset = (running_task->link.id & 0xFFFFFFFF) * 2;
-    offset = CONSOLE_WIDTH * CONSOLE_HEIGHT - (offset % (CONSOLE_WIDTH * CONSOLE_HEIGHT));
+    offset = CONSOLE_WIDTH * CONSOLE_HEIGHT - (offset % (CONSOLE_WIDTH * CONSOLE_HEIGHT)) + 2;
 
     while (1) {
         value1 = 1;
