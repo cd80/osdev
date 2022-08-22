@@ -7,6 +7,7 @@
 #include "helper_asm.h"
 #include "task.h"
 #include "sync.h"
+#include "dynamic_memory.h"
 
 struct shell_command_entry command_table[] = {
     { "help", "Show help", cmd_help },
@@ -28,6 +29,9 @@ struct shell_command_entry command_table[] = {
     { "testthread", "Test thread and process", cmd_testthread },
     { "showmatrix", "Show matrix screen", cmd_showmatrix },
     { "testpi", "Test pi calculation", cmd_testpi },
+    { "dynamicmeminfo", "Show dynamic memory information", cmd_dynamicmeminfo },
+    { "testseqalloc", "Test sequential allocation & free", cmd_testseqalloc },
+    { "testranalloc", "Test random allocation & free", cmd_testranalloc },
 };
 
 void start_console_shell(void) {
@@ -156,6 +160,15 @@ static void cmd_help(const char *param) {
         get_cursor(&x, &y);
         set_cursor(max_cmd_length, y);
         printf(" - %s\n", command_table[i].help_msg);
+
+        if ((i != 0) && ((i % 20) == 0)) {
+            printf("Press any key to continue... ('q' is exit) : ");
+            if (getch() == 'q') {
+                printf("\n");
+                break;
+            }
+            printf("\n");
+        }
     }
 }
 
@@ -672,5 +685,120 @@ static void cmd_testpi(const char *param) {
 
     for (int i = 0; i < 100; ++i) {
         create_task(TASK_FLAGS_LOW | TASK_FLAGS_THREAD, 0, 0, (QWORD) fpu_test_task);
+    }
+}
+
+static void cmd_dynamicmeminfo(const char *param) {
+    QWORD start_address, total_size, meta_size, used_size;
+    get_dynamic_memory_information(&start_address, &total_size,
+                                    &meta_size, &used_size);
+    printf("============ Dynamic Memory Information ============\n");
+    printf("Start address : [0x%Q]\n", start_address);
+    printf("Total size :    [0x%Q]bytes, [%d]MB\n", total_size, (total_size / 1024 / 1024));
+    printf("Meta size:      [0x%Q]bytes, [%d]KB\n", meta_size, (meta_size / 1024));
+    printf("Used size:      [0x%Q]bytes, [%d]KB\n", used_size, (used_size / 1024));
+}
+
+static void cmd_testseqalloc(const char *param) {
+    DYNAMICMEMORYMANAGER *memory;
+    QWORD *buf;
+
+    printf("============ Dynamic Memory Test ============\n");
+    memory = get_dynamic_memory_manager();
+
+    for (long i = 0; i < memory->max_level_count; ++i) {
+        printf("Block list [%d] test start\n", i);
+        printf("Allocate and Compare: ");
+
+        for (long j = 0; j < (memory->block_count_of_smallest_block >> i); ++j) {
+            buf = allocate_memory(DYNAMICMEMORY_MIN_SIZE << i);
+            if (buf == NULL) {
+                printf("Allocation fail\n");
+                return;
+            }
+
+            for (long k = 0; k < (DYNAMICMEMORY_MIN_SIZE << i) / 8; ++k) {
+                buf[k] = k;
+            }
+            for (long k = 0; k < (DYNAMICMEMORY_MIN_SIZE << i) / 8; ++k) {
+                if (buf[k] != k) {
+                    printf("Compare fail\n");
+                    return;
+                }
+            }
+            printf(".");
+        }
+
+        printf("\nFree: ");
+        for (long j = 0; j < (memory->block_count_of_smallest_block >> i); ++j) {
+            if (free_memory((void *)(memory->start_address +
+                                (DYNAMICMEMORY_MIN_SIZE << i) * j)) == FALSE) {
+                printf("\nFree fail\n");
+                return;
+            }
+            printf(".");
+        }
+        printf("\n");
+    }
+    printf("Test complete!!!\n");
+}
+
+static void random_alloc_task(void) {
+    TCB *task;
+    QWORD memory_size;
+    char buf[200];
+    BYTE *alloc_buf;
+    int y;
+
+    task = get_running_task();
+    y = (task->link.id % 15) + 9;
+
+    for (int i = 0; i < 10; ++i) {
+        do {
+            memory_size = ((random() % (32 * 1024)) + 1) * 1024;
+            alloc_buf = allocate_memory(memory_size);
+            
+            if (alloc_buf == 0) {
+                sleep(1);
+            }
+        } while (alloc_buf == 0);
+
+        sprintf(buf, "|Address: [0x%Q] Size: [0x%Q] allocate success                    ",
+                        alloc_buf, memory_size);
+        printat(10, y, buf);
+        sleep(200);
+
+        sprintf(buf, "|Address: [0x%Q] Size: [0x%Q] write data...                       ",
+                        alloc_buf, memory_size);
+        printat(10, y, buf);
+
+        for (int j = 0; j < memory_size / 2; ++j) {
+            alloc_buf[j] = random() % 0xFF;
+            alloc_buf[j + (memory_size / 2)] = alloc_buf[j];
+        }
+        sleep(200);
+  
+        sprintf(buf, "|Address: [0x%Q] Size: [0x%Q] verify data...                      ",
+                    alloc_buf, memory_size);
+        printat(10, y, buf);
+
+        for (int j = 1; j < memory_size / 2; ++j) {
+            if (alloc_buf[j] != alloc_buf[j + (memory_size / 2)]) {
+                // sprintf(buf, "|Address: [0x%Q] Size: [0x%Q] failed at %x, %x != %x      ", alloc_buf, memory_size, j, alloc_buf[j], alloc_buf[j + (memory_size / 2)]);
+                // printat(10, y, buf);
+                printf("Task ID[0x%Q] verify failed %x != %x\n", task->link.id, alloc_buf[j], alloc_buf[j + (memory_size / 2)]);
+                exit_task();
+            }
+        }
+        sprintf(buf, "|Address: [0x%Q] Size: [0x%Q] verification success          ", alloc_buf, memory_size);
+        printat(10, y, buf);
+        free_memory(alloc_buf);
+        sleep(200);
+    }
+    exit_task();
+}
+static void cmd_testranalloc(const char *param) {
+    for (int i = 0; i < 1000; ++i) {
+        create_task(TASK_FLAGS_LOWEST | TASK_FLAGS_THREAD, 0, 0, (QWORD)random_alloc_task);
     }
 }

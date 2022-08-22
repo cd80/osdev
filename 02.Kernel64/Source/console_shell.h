@@ -48,5 +48,8 @@ static void cmd_testmutex(const char *param);
 static void cmd_testthread(const char *param);
 static void cmd_showmatrix(const char *param);
 static void cmd_testpi(const char *param);
+static void cmd_dynamicmeminfo(const char *param);
+static void cmd_testseqalloc(const char *param);
+static void cmd_testranalloc(const char *param);
 
 #endif

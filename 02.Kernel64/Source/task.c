@@ -12,7 +12,7 @@ static void initialize_tcb_pool(void) {
     memset(&(tcb_pool_manager), 0, sizeof(tcb_pool_manager));
 
     tcb_pool_manager.start_address = (TCB *)TASK_TCBPOOLADDRESS;
-    memset(TASK_TCBPOOLADDRESS, 0, sizeof(TCB) * TASK_MAXCOUNT);
+    memset((void *)TASK_TCBPOOLADDRESS, 0, sizeof(TCB) * TASK_MAXCOUNT);
 
     for (int i = 0; i < TASK_MAXCOUNT; ++i) {
         tcb_pool_manager.start_address[i].link.id = i;

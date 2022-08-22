@@ -24,3 +24,4 @@ https://digital.kyobobook.co.kr/digital/ebook/ebookDetail.ink?selectedLargeCateg
 2022.8.19 Chapter #20 Done!  
 2022.8.20 Chapter #21 Done!  
 2022.8.21 Chapter #22 Done!  
+2022.8.22 Chapter #23 Done!  
