@@ -4,16 +4,10 @@
 #include "utility.h"
 
 BOOL lock_system(void) {
-    g_is_system_locked = TRUE;
-    //printf("locked_system - %Q %Q %Q %Q %Q\n", __builtin_return_address(0), __builtin_return_address(1), __builtin_return_address(2),
-    //                            __builtin_return_address(3), __builtin_return_address(4));
     return set_interrupt_flag(FALSE);
 }
 
 void unlock_system(BOOL interrupt_flag) {
-    g_is_system_locked = interrupt_flag;
-    //printf("unlocked_system - %Q %Q %Q %Q %Q\n", __builtin_return_address(0), __builtin_return_address(1), __builtin_return_address(2),
-    //                            __builtin_return_address(3), __builtin_return_address(4));
     set_interrupt_flag(interrupt_flag);
 }
 
