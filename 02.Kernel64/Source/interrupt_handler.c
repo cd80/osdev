@@ -6,6 +6,7 @@
 #include "task.h"
 #include "descriptor.h"
 #include "helper_asm.h"
+#include "harddisk.h"
 
 void common_exception_handler(int vector, QWORD error_code) {
     char buf[3] = {0, };
@@ -62,8 +63,8 @@ void timer_handler(int vector) {
     buf[5] = '0' + (vector / 10);
     buf[6] = '0' + (vector % 10);
     
-    buf[8] = g_timer_interrupt_count;
-    g_timer_interrupt_count = '0' + (g_timer_interrupt_count + 1) % 10;
+    buf[8] = '0' + g_timer_interrupt_count;
+    g_timer_interrupt_count = (g_timer_interrupt_count + 1) % 10;
     printat(70, 0, buf);
 
     send_eoi_to_pic(vector - PIC_IRQSTARTVECTOR);
@@ -113,4 +114,26 @@ void device_not_available_handler(int vector) {
     }
 
     set_last_fpu_task_id(cur_task->link.id);
+}
+
+void hdd_handler(int vector) {
+    char buf[] = "[INT:  , ]";
+    static int g_hdd_interrupt_count = 0;
+    BYTE temp;
+
+    buf[5] = '0' + (vector / 10);
+    buf[6] = '0' + (vector % 10);
+
+    buf[8] = '0' + g_hdd_interrupt_count;
+    g_hdd_interrupt_count = (g_hdd_interrupt_count + 1) % 10;
+    printat(10, 0, buf);
+
+    if (vector - PIC_IRQSTARTVECTOR == 14) {
+        set_hdd_interrupt_flag(TRUE, TRUE);
+    }
+    else {
+        set_hdd_interrupt_flag(FALSE, TRUE);
+    }
+
+    send_eoi_to_pic(vector - PIC_IRQSTARTVECTOR);
 }

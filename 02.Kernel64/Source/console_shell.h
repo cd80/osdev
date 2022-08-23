@@ -51,5 +51,9 @@ static void cmd_testpi(const char *param);
 static void cmd_dynamicmeminfo(const char *param);
 static void cmd_testseqalloc(const char *param);
 static void cmd_testranalloc(const char *param);
+static void cmd_hddinfo(const char *param);
+static void cmd_readsector(const char *param);
+static void cmd_writesector(const char *param);
+static void cmd_testsleep(const char *param);
 
 #endif

@@ -23,4 +23,5 @@ void init_mutex(MUTEX *mutex);
 void mutex_lock(MUTEX *mutex);
 void mutex_unlock(MUTEX *mutex);
 
+BOOL g_is_system_locked;
 #endif

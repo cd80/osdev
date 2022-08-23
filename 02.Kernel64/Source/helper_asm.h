@@ -5,7 +5,9 @@
 #include "task.h"
 
 BYTE in1(WORD port);
+WORD in2(WORD port);
 void out1(WORD port, BYTE data);
+void out2(WORD port, WORD data);
 void load_gdtr(QWORD gdtr_address);
 void load_tr(WORD tss_segment_offset);
 void load_idtr(QWORD idtr_address);

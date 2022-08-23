@@ -2,7 +2,7 @@
 
 SECTION .text
 
-global in1, out1, load_gdtr, load_tr, load_idtr
+global in1, out1, in2, out2, load_gdtr, load_tr, load_idtr
 global enable_interrupt, disable_interrupt, read_rflags, read_tsc
 global switch_context, halt, test_and_set
 global init_fpu, save_fpu_ctx, load_fpu_ctx, set_ts, clear_ts
@@ -17,6 +17,15 @@ in1:
     pop rdx
     ret
 
+in2:
+    push rdx
+    mov rdx, rdi
+    mov rax, 0
+    in ax, dx
+
+    pop rdx
+    ret
+
 out1:
     push rdx
     push rax
@@ -24,6 +33,17 @@ out1:
     mov rdx, rdi
     mov rax, rsi
     out dx, al
+
+    pop rax
+    pop rdx
+    ret
+
+out2:
+    push rdx
+    push rax
+    mov rdx, rdi
+    mov rax, rsi
+    out dx, ax
 
     pop rax
     pop rdx

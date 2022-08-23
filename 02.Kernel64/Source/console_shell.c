@@ -8,6 +8,7 @@
 #include "task.h"
 #include "sync.h"
 #include "dynamic_memory.h"
+#include "harddisk.h"
 
 struct shell_command_entry command_table[] = {
     { "help", "Show help", cmd_help },
@@ -32,6 +33,11 @@ struct shell_command_entry command_table[] = {
     { "dynamicmeminfo", "Show dynamic memory information", cmd_dynamicmeminfo },
     { "testseqalloc", "Test sequential allocation & free", cmd_testseqalloc },
     { "testranalloc", "Test random allocation & free", cmd_testranalloc },
+    { "hddinfo", "Show HDD information", cmd_hddinfo },
+    { "readsector", "Read HDD sector, ex)readsector 0(LBA) 10(count)", cmd_readsector },
+    { "writesector", "Write HDD sector, ex)writesector 0(LBA) 10(count)", cmd_writesector },
+    { "testsleep", "Test sleep performance", cmd_testsleep },
+
 };
 
 void start_console_shell(void) {
@@ -801,4 +807,169 @@ static void cmd_testranalloc(const char *param) {
     for (int i = 0; i < 1000; ++i) {
         create_task(TASK_FLAGS_LOWEST | TASK_FLAGS_THREAD, 0, 0, (QWORD)random_alloc_task);
     }
+}
+
+static void cmd_hddinfo(const char *param) {
+    HDDINFORMATION hdd;
+    char buf[100];
+
+    if (read_hdd_information(TRUE, TRUE, &hdd) == FALSE) {
+        printf("Failed to read hdd information\n");
+        return;
+    }
+
+    printf("========== Primary Master HDD Information ==========\n");
+
+    memcpy(buf, hdd.model_number, sizeof(hdd.model_number));
+    buf[sizeof(hdd.model_number) - 1] = '\0';
+    printf("Model number:\t %s\n", buf);
+
+    memcpy(buf, hdd.serial_number, sizeof(hdd.serial_number));
+    buf[sizeof(hdd.serial_number) - 1] = '\0';
+    printf("Serial number: \t %s\n", buf);
+
+    printf("Head count:\t %d\n", hdd.number_of_head);
+    printf("Cylinder count:\t %d\n", hdd.number_of_cylinder);
+    printf("Sector count:\t %d\n", hdd.number_of_sector_per_cylinder);
+
+    printf("Total sector:\t %d Sector, %dMB\n", hdd.total_sectors, hdd.total_sectors / 2 / 1024);
+}
+static void cmd_readsector(const char *param) {
+    struct parameter_list param_list;
+    char LBA_param[50], sector_count_param[50];
+    DWORD LBA;
+    int sector_count;
+    char *buf;
+    BYTE data;
+    BOOL is_exit = FALSE;
+
+    initialize_parameter(&param_list, param);
+    if ((get_next_param(&param_list, LBA_param) == 0) ||
+        (get_next_param(&param_list, sector_count_param) == 0)) {
+        printf("ex) readsector 0(LBA) 10(count)\n");
+        return;
+    }
+    LBA = atoi(LBA_param, 10);
+    sector_count = atoi(sector_count_param, 10);
+
+    buf = allocate_memory(sector_count * 512);
+    if (read_hdd_sector(TRUE, TRUE, LBA, sector_count, buf) == sector_count) {
+        printf("LBA [%d], [%d] sector read success!!", LBA, sector_count);
+        for (int i = 0; i < sector_count; ++i) {
+            for (int j = 0; j < 512; ++j) {
+                if (!((i == 0) && (j == 0)) && ((j % 256) == 0)) {
+                    printf("\nPress any key to continue... ('q' is exit): ");
+                    if (getch() == 'q') {
+                        is_exit = TRUE;
+                        break;
+                    }
+                }
+                if ((j % 16) == 0) {
+                    printf("\n[LBA:%d, Offset:%d]\t| ", LBA + i, j);
+                }
+
+                data = buf[i * 512 + j] & 0xFF;
+                if (data < 16) {
+                    printf("0");
+                }
+                printf("%X ", data);
+            }
+
+            if (is_exit == TRUE) {
+                break;
+            }
+        }
+        printf("\n");
+    }
+    else {
+        printf("Read Failed!\n");
+    }
+
+    free_memory(buf);
+}
+static void cmd_writesector(const char *param) {
+    struct parameter_list param_list;
+    char LBA_param[50], sector_count_param[50];
+    DWORD LBA;
+    int sector_count;
+    char *buf;
+    BOOL is_exit = FALSE;
+    BYTE data;
+    static DWORD g_write_count = 0;
+
+    initialize_parameter(&param_list, param);
+    if ((get_next_param(&param_list, LBA_param) == 0) ||
+        (get_next_param(&param_list, sector_count_param) == 0)) {
+        printf("ex) writesector 0(LBA) 10(count)\n");
+        return;
+    }
+    
+    LBA = atoi(LBA_param, 10);
+    sector_count = atoi(sector_count_param, 10);
+
+    g_write_count++;
+
+    buf = allocate_memory(sector_count * 512);
+
+    for (int i = 0; i < sector_count; ++i) {
+        for(int j = 0; j < 512; j += 8) {
+            *(DWORD *)&(buf[i * 512 + j]) = LBA + i;
+            *(DWORD *)&(buf[i * 512 + j + 4]) = g_write_count;
+        }
+    }
+
+    if (write_hdd_sector(TRUE, TRUE, LBA, sector_count, buf) != sector_count) {
+        printf("Write fail\n");
+        return;
+    }
+
+    printf("LBA [%d], [%d] Sector read success!!", LBA, sector_count);
+    
+    for (int i = 0; i < sector_count; ++i) {
+        for (int j = 0; j < 512; ++j) {
+            if (!((i == 0) && (j == 0)) && ((j % 256) == 0)) {
+                printf("\nPress any key to continue... ('q' is exit) : ");
+                if (getch() == 'q') {
+                    is_exit = TRUE;
+                    break;
+                }
+            }
+            if ((j % 16) == 0) {
+                printf("\n[LBA:%d, Offset:%d]\t| ", LBA + i, j);
+            }
+            data = buf[i * 512 + j] & 0xFF;
+            if (data < 16) {
+                printf("0");
+            }
+            printf("%X ", data);
+        }
+        if (is_exit == TRUE) {
+            break;
+        }
+    }
+    printf("\n");
+    free_memory(buf);
+}
+
+static void cmd_testsleep(const char *param) {
+    BYTE second_before, minute_before, hour_before;
+    BYTE second_after, minute_after, hour_after;
+    printf("Testing 10 seconds sleep...\n");
+    read_rtc_time(&hour_before, &minute_before, &second_before);
+    sleep(10000);
+    read_rtc_time(&hour_after, &minute_after, &second_after);
+
+    printf("[Sleep(10000)] Elapsed %d seconds\n\n", ((hour_after - hour_before) * 3600) +
+                                                    ((minute_after - minute_before) * 60) +
+                                                    (second_after - second_before));
+    
+    printf("Testing 10000 1ms sleep\n");
+    read_rtc_time(&hour_before, &minute_before, &second_before);
+    for (int i = 0; i < 10000; ++i) {
+        sleep(1);
+    }
+    read_rtc_time(&hour_after, &minute_after, &second_after);
+    printf("[10000*Sleep(1)] Elapsed %d seconds\n\n", ((hour_after - hour_before) * 3600) +
+                                                        ((minute_after - minute_before) * 60) +
+                                                        (second_after - second_before));
 }
