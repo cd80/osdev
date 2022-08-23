@@ -17,13 +17,12 @@ void main(void) {
     progress(0, 13, "Initialize PIC & Interrupt", initialize_pic_and_interrupt());
     progress(0, 14, "Initialize Keyboard", initialize_keyboard());
     progress(0, 15, "Initialize TCB Pool & Scheduler", initialize_scheduler());
+    create_task(TASK_FLAGS_LOWEST | TASK_FLAGS_THREAD | TASK_FLAGS_SYSTEM | TASK_FLAGS_IDLE, 0, 0, (QWORD)idle_task);
     progress(0, 16, "Initialize Dynamic Memory", initialize_dynamic_memory());
     progress(0, 17, "Initialize HDD", initialize_hdd());
     initialize_pit(MSTOCOUNT(1), 1);
 
-
     initialize_console(0, 18);
-    create_task(TASK_FLAGS_LOWEST | TASK_FLAGS_THREAD | TASK_FLAGS_SYSTEM | TASK_FLAGS_IDLE, 0, 0, (QWORD)idle_task);
     start_console_shell();
 }
 
