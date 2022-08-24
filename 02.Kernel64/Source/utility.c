@@ -5,10 +5,11 @@
 
 volatile QWORD g_tick_count = 0;
 
-void progress(int x, int y, const char *string, BOOL success) {
+void progress(const char *string, BOOL success) {
     CHARACTER *screen = (CHARACTER *)0xB8000;
     char *msg_success = success ? "PASS" : "FAIL";
     char attr = success ? 0x07 : 0x0c;
+    char buf[80] = {0, };
     DWORD str_len = 0;
 
     if (success != TRUE && success != FALSE) {
@@ -22,18 +23,21 @@ void progress(int x, int y, const char *string, BOOL success) {
         printat(24, 0, string);
     }
     screen += x + y * 80;
-    str_len = printat(x, y, string);
+    str_len = memcpy(buf, string, strlen(string));
+    
     for(; str_len < 75; ++str_len) {
-        screen[str_len].character = '.';
+        buf[str_len].character = '.';
     }
-    screen[74].character ='[';
+    buf[74].character ='[';
 
     for(int i=0; msg_success[i] != 0; ++i) {
-        screen[i+75].character = msg_success[i];
-        screen[i+75].attr = attr;
+        buf[i+75].character = msg_success[i];
+        buf[i+75].attr = attr;
     }
 
-    screen[79].character = ']';
+    buf[79].character = ']';
+
+    printf("%s\n");
     
     if(msg_success[0] == 'F') {
         while (1) {}

@@ -55,5 +55,11 @@ static void cmd_hddinfo(const char *param);
 static void cmd_readsector(const char *param);
 static void cmd_writesector(const char *param);
 static void cmd_testsleep(const char *param);
+static void cmd_mounthdd(const char *param);
+static void cmd_formathdd(const char *param);
+static void cmd_filesysteminfo(const char *param);
+static void cmd_createfile(const char *param);
+static void cmd_deletefile(const char *param);
+static void cmd_dir(const char *param);
 
 #endif
