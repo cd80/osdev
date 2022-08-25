@@ -1,6 +1,7 @@
 #include "filesystem.h"
 #include "harddisk.h"
 #include "dynamic_memory.h"
+#include "utility.h"
 
 static FILESYSTEMMANAGER g_fs_manager;
 static BYTE g_temp_buf[FILESYSTEM_SECTORSPERCLUSTER * 512];
@@ -45,7 +46,7 @@ BOOL format(void) {
     remain_sector_count = total_sector_count - cluster_link_sector_count - 1;
     cluster_count = remain_sector_count / FILESYSTEM_SECTORSPERCLUSTER;
 
-    cluster_link_sector_cuont = (cluster_count + 127) / 128;
+    cluster_link_sector_count = (cluster_count + 127) / 128;
 
     if (gf_read_hdd_sector(TRUE, TRUE, 0, 1, g_temp_buf) == FALSE) {
         mutex_unlock(&(g_fs_manager.lock));
@@ -74,7 +75,7 @@ BOOL format(void) {
         }
 
         if (gf_write_hdd_sector(TRUE, TRUE, i + 1, 1, g_temp_buf) == FALSE) {
-            mutex_unlock(&(g_fs_manaegr.lock));
+            mutex_unlock(&(g_fs_manager.lock));
             return FALSE;
         }
     }
@@ -93,7 +94,7 @@ BOOL mount(void) {
     }
 
     mbr = (MBR *)g_temp_buf;
-    if (mbr->signature == FILESYSTEM_SIGNATURE) {
+    if (mbr->signature != FILESYSTEM_SIGNATURE) {
         mutex_unlock(&(g_fs_manager.lock));
         return FALSE;
     }
@@ -133,9 +134,9 @@ BOOL read_cluster(DWORD offset, BYTE *buf) {
 }
 
 BOOL write_cluster(DWORD offset, BYTE *buf) {
-    return gf_write(hdd_sector(TRUE, TRUE, (offset * FILESYSTEM_SECTORSPERCLUSTER) +
+    return gf_write_hdd_sector(TRUE, TRUE, (offset * FILESYSTEM_SECTORSPERCLUSTER) +
                     g_fs_manager.data_area_start_address,
-                    FILESYSTEM_SECTORSPERCLUSTER, buf));
+                    FILESYSTEM_SECTORSPERCLUSTER, buf);
 }
 
 DWORD find_free_cluster(void) {
@@ -168,7 +169,7 @@ DWORD find_free_cluster(void) {
                 break;
             }
         }
-        if (empty_index != link_count_in_sector) {
+        if (empty_idx != link_count_in_sector) {
             g_fs_manager.last_allocated_cluster_link_sector_offset = current_sector_offset;
             return (current_sector_offset * 128) + empty_idx;
         }
@@ -179,13 +180,13 @@ DWORD find_free_cluster(void) {
 BOOL set_cluster_link_data(DWORD cluster_index, DWORD data) {
     DWORD sector_offset;
 
-    if (g_fS_manager.is_mounted == FALSE) {
+    if (g_fs_manager.is_mounted == FALSE) {
         return FALSE;
     }
 
     sector_offset = cluster_index / 128;
 
-    if (read_cluster_ilnk_table(sector_offset, g_temp_buf) == FALSE) {
+    if (read_cluster_link_table(sector_offset, g_temp_buf) == FALSE) {
         return FALSE;
     }
 
@@ -287,8 +288,9 @@ int find_directory_entry(const char *filename, DIRECTORYENTRY *entry) {
     name_length = strlen(filename);
     root_entry = (DIRECTORYENTRY *)g_temp_buf;
     for (int i = 0; i < FILESYSTEM_MAXDIRECTORYENTRYCOUNT; ++i) {
-        if (memcmp(root_entry[i].file_name, filename, name_length) == 0) {
+        if (memcmp(root_entry[i].file_name, (void *)filename, name_length) == 0) {
             memcpy(entry, root_entry + i, sizeof(DIRECTORYENTRY));
+            return i;
         }
     }
     return -1;

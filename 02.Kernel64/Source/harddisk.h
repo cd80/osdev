@@ -83,8 +83,8 @@ typedef struct _HDDMANAGER {
 
 BOOL initialize_hdd(void);
 BOOL read_hdd_information(BOOL is_primary, BOOL is_master, HDDINFORMATION *hdd_information);
-int read_hdd_sector(BOOL is_primary, BOOL is_master, DWORD LBA, int sector_count, char *buf);
-int write_hdd_sector(BOOL is_primary, BOOL is_master, DWORD LBA, int sector_count, char *buf);
+int read_hdd_sector(BOOL is_primary, BOOL is_master, DWORD LBA, int sector_count, BYTE *buf);
+int write_hdd_sector(BOOL is_primary, BOOL is_master, DWORD LBA, int sector_count, BYTE *buf);
 void set_hdd_interrupt_flag(BOOL is_primary, BOOL flag);
 
 static void swap_byte_in_word(WORD *data, int word_count);

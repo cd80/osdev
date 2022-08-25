@@ -9,7 +9,7 @@ void progress(const char *string, BOOL success) {
     CHARACTER *screen = (CHARACTER *)0xB8000;
     char *msg_success = success ? "PASS" : "FAIL";
     char attr = success ? 0x07 : 0x0c;
-    char buf[80] = {0, };
+    char buf[81] = {0, };
     DWORD str_len = 0;
 
     if (success != TRUE && success != FALSE) {
@@ -22,26 +22,20 @@ void progress(const char *string, BOOL success) {
         printat(0, 0, "wrong call to progress: ");
         printat(24, 0, string);
     }
-    screen += x + y * 80;
-    str_len = memcpy(buf, string, strlen(string));
+    str_len = memcpy(buf, (void *)string, strlen(string));
     
-    for(; str_len < 75; ++str_len) {
-        buf[str_len].character = '.';
+    for(; str_len < 73; ++str_len) {
+        buf[str_len] = '.';
     }
-    buf[74].character ='[';
+    buf[73] ='[';
 
     for(int i=0; msg_success[i] != 0; ++i) {
-        buf[i+75].character = msg_success[i];
-        buf[i+75].attr = attr;
+        buf[i+74] = msg_success[i];
     }
 
-    buf[79].character = ']';
+    buf[78] = ']';
 
-    printf("%s\n");
-    
-    if(msg_success[0] == 'F') {
-        while (1) {}
-    }
+    printf("%s\n", buf);
 }
 
 

@@ -34,17 +34,17 @@ void progress(int x, int y, const char *string, BOOL success) {
     CHARACTER *screen = (CHARACTER *)0xB8000;
     screen += x + y * 80;
     str_len = printat(x, y, string);
-    for(; str_len < 75; ++str_len) {
+    for(; str_len < 73; ++str_len) {
         screen[str_len].character = '.';
     }
-    screen[74].character ='[';
+    screen[73].character ='[';
 
     for(int i=0; msg_success[i] != 0; ++i) {
-        screen[i+75].character = msg_success[i];
-        screen[i+75].attr = attr;
+        screen[i+74].character = msg_success[i];
+        screen[i+74].attr = attr;
     }
 
-    screen[79].character = ']';
+    screen[78].character = ']';
     
     if(msg_success[0] == 'F') {
         while (1) {}

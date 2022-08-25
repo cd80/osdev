@@ -15,8 +15,8 @@
 #define FILESYSTEM_MAXFILENAMELENGTH    24
 
 typedef BOOL (*READ_HDD_INFORMATION)(BOOL is_primary, BOOL is_master, HDDINFORMATION *hdd_information);
-typedef int (*READ_HDD_SECTOR)(BOOL is_primary, BOOL is_master, DWORD LBA, int sector_count, char *buf);
-typedef int (*WRITE_HDD_SECTOR)(BOOL is_primary, BOOL is_master, DWORD LBA, int sector_count, char *buf);
+typedef int (*READ_HDD_SECTOR)(BOOL is_primary, BOOL is_master, DWORD LBA, int sector_count, BYTE *buf);
+typedef int (*WRITE_HDD_SECTOR)(BOOL is_primary, BOOL is_master, DWORD LBA, int sector_count, BYTE *buf);
 
 #pragma pack(push, 1)
 typedef struct _PARTITION {

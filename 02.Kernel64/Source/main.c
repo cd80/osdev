@@ -12,10 +12,15 @@
 #include "filesystem.h"
 
 void main(void) {
+    BOOL gdt_tss_result = FALSE;
+    BOOL idt_result = FALSE;
+    gdt_tss_result = initialize_gdt_tss();
+    idt_result = initialize_idt();
+    
     initialize_console(0, 10);
     progress("Switched to 64bit", TRUE);
-    progress("Initialize GDT & TSS for IA-32e", initialize_gdt_tss());
-    progress("Initialize IDT", initialize_idt());
+    progress("Initialize GDT & TSS", gdt_tss_result);
+    progress("Initialize IDT", idt_result);
     progress("Initialize PIC & Interrupt", initialize_pic_and_interrupt());
     progress("Initialize Keyboard", initialize_keyboard());
     progress("Initialize TCB Pool & Scheduler", initialize_scheduler());

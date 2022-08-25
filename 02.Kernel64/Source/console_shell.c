@@ -845,7 +845,7 @@ static void cmd_readsector(const char *param) {
     char LBA_param[50], sector_count_param[50];
     DWORD LBA;
     int sector_count;
-    char *buf;
+    BYTE *buf;
     BYTE data;
     BOOL is_exit = FALSE;
 
@@ -898,7 +898,7 @@ static void cmd_writesector(const char *param) {
     char LBA_param[50], sector_count_param[50];
     DWORD LBA;
     int sector_count;
-    char *buf;
+    BYTE *buf;
     BOOL is_exit = FALSE;
     BYTE data;
     static DWORD g_write_count = 0;
@@ -1066,7 +1066,7 @@ static void cmd_deletefile(const char *param) {
     length = get_next_param(&param_list, filename);
     filename[length] = '\0';
 
-    if (length > (sizeof(entry.filename) - 1)) {
+    if (length > (sizeof(entry.file_name) - 1)) {
         printf("File name too long!\n");
         return;
     }
@@ -1151,6 +1151,6 @@ static void cmd_dir(const char *param) {
         count++;
     }
 
-    printf("\t Total file cunt: %d\t Total File Size: %d bytes\n", total_count, total_byte);
+    printf("\t Total file count: %d\t Total File Size: %d bytes\n", total_count, total_byte);
     free_memory(cluster_buffer);
 }

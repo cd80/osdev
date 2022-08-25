@@ -81,11 +81,11 @@ BOOL read_hdd_information(BOOL is_primary, BOOL is_master, HDDINFORMATION *hdd_i
     return TRUE;
 }
 
-int read_hdd_sector(BOOL is_primary, BOOL is_master, DWORD LBA, int sector_count, char *buf){
+int read_hdd_sector(BOOL is_primary, BOOL is_master, DWORD LBA, int sector_count, BYTE *buf){
     WORD port_base;
     BYTE drive_flag;
     BYTE status;
-    long read_count;
+    long read_count = 0;
     BOOL wait_result;
 
     if ((g_hdd_manager.hdd_detected == FALSE) ||
@@ -145,7 +145,7 @@ int read_hdd_sector(BOOL is_primary, BOOL is_master, DWORD LBA, int sector_count
     return sector_count;
 }
 
-int write_hdd_sector(BOOL is_primary, BOOL is_master, DWORD LBA, int sector_count, char *buf){
+int write_hdd_sector(BOOL is_primary, BOOL is_master, DWORD LBA, int sector_count, BYTE *buf){
     WORD port_base;
     WORD temp;
     BYTE drive_flag;

@@ -7,7 +7,7 @@
 struct console_manager console_manager = {0, };
 
 void initialize_console(int x, int y) {
-    memset((void*)&console_manager, 0, sizeof(struct console_manager));
+    memset((void *)&console_manager, 0, sizeof(struct console_manager));
     set_cursor(x, y);
 }
 
@@ -36,7 +36,6 @@ void printf(const char *fmt, ...) {
     va_start(ap, fmt);
     vsprintf(buf, fmt, ap);
     va_end(ap);
-
     next_offset = console_print(buf);
 
     set_cursor(X(next_offset), Y(next_offset));
